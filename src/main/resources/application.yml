@@ -1,0 +1,16 @@
+spring:
+  application:
+    name: datacatalog
+
+management:
+  endpoints:
+    web:
+      # Serve actuator endpoints from the root so the health check is GET /health.
+      # Only `health` is exposed; the API itself lives under /v1/** so there is no collision.
+      base-path: /
+      exposure:
+        include: health
+  endpoint:
+    health:
+      probes:
+        enabled: true
