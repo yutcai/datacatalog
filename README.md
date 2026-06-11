@@ -28,7 +28,7 @@ Java 21 · Spring Boot 3 · Spring Security (JWT / OAuth2 resource server) · Sp
 
 ```bash
 docker compose up
-curl localhost:8080/health
+curl localhost:8083/health
 ```
 
 Requires only Docker — the app image builds itself, and Postgres + LocalStack (S3) start alongside it.

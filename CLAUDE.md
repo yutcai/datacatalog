@@ -21,5 +21,5 @@ Only the 7 documented `/v1/datasets*` endpoints. Explicitly out of scope (do not
 ```bash
 ./gradlew build        # unit + component tests
 docker compose up      # full stack: app + Postgres + LocalStack
-curl localhost:8080/health
+curl localhost:8083/health
 ```
