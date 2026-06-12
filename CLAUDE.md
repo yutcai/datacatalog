@@ -16,6 +16,8 @@ Portfolio backend project: a metadata-driven data catalog (Spring Boot 3, Java 2
 
 Only the 7 documented `/v1/datasets*` endpoints. Explicitly out of scope (do not build now): pgvector/semantic search, MCP server, LLM enrichment, SQS workers, Prometheus/Grafana, Terraform, multipart upload, Elasticsearch, Redis.
 
+Per-phase Definition of Done lives in `docs/ROADMAP.md` — check items off there as they land.
+
 ## Verify
 
 ```bash
