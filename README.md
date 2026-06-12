@@ -54,10 +54,17 @@ To develop locally:
 
 ## Design decisions
 
+### PostgreSQL + JSONB with a GIN index
+
+Dataset metadata is user-defined and varies per dataset, so it cannot live in fixed columns — but it must stay queryable. A `jsonb` column with a GIN index gives schemaless writes and indexed containment queries (`metadata @> '{"region": "emea"}'`) in the same store as the relational data: transactional consistency with datasets/versions, joins for free, and no second system to operate. The alternatives both lose at this scale — an EAV table turns every multi-key filter into self-joins, and a document DB adds an operational dependency while giving up joins. The default `jsonb_ops` opclass was chosen over the smaller `jsonb_path_ops` because search also needs key-existence operators, not just containment.
+
+### Liquibase owns the schema
+
+The schema is defined in versioned, reviewable SQL changesets that run automatically on startup; the `databasechangelog` table records exactly what ran in every environment. Hibernate is pinned to `ddl-auto: validate`, so entity/schema drift fails fast at boot instead of being silently "fixed" in production. Every changeset declares a rollback. Tables are plain DDL on purpose: JSONB, GIN indexes, and check constraints are Postgres features, and hiding them behind an abstraction layer would only obscure what is actually deployed.
+
 *To be expanded as each slice lands:*
 
 - **Pre-signed URLs** — why file bytes bypass the app tier
-- **PostgreSQL + JSONB (GIN index)** — flexible metadata that stays queryable, without a second store
 - **Immutable versions with a PENDING → ACTIVE state machine** — why upload is a two-step protocol
 - **Sync API, no async pipeline yet** — and where a queue would slot in
 - **No multipart upload yet** — implies a practical size cap; how multipart would be added

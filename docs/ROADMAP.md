@@ -10,7 +10,7 @@ A complete, runnable metadata catalog: REST API, S3 pre-signed upload/download, 
 
 - [ ] All 7 `/v1/datasets*` endpoints work end-to-end: create → request upload → direct PUT to S3 → complete → search → download
 - [ ] Current user is derived from the JWT, never from the request body
-- [ ] Postgres schema managed by Liquibase; metadata queryable via JSONB + GIN index
+- [x] Postgres schema managed by Liquibase; metadata queryable via JSONB + GIN index
 - [ ] JWT / OAuth2 resource server protects all write endpoints
 - [ ] Playwright E2E covers the full happy path plus edge cases: 401 unauthorized, 404 not found, downloading a PENDING version
 - [ ] JUnit + Testcontainers cover a Postgres-backed slice
