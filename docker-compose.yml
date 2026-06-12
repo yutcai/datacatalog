@@ -3,6 +3,8 @@ services:
     build: .
     ports:
       - "8083:8083"
+    environment:
+      DB_HOST: postgres
     depends_on:
       postgres:
         condition: service_healthy
