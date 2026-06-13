@@ -20,25 +20,73 @@ flowchart LR
 
 File bytes never pass through the application tier — the API issues pre-signed S3 URLs and the client transfers directly to/from object storage.
 
+## Data model
+
+```mermaid
+erDiagram
+    users ||--o{ datasets : owns
+    datasets ||--o{ file_versions : "has immutable versions"
+
+    users {
+        uuid id PK
+        text username UK
+        timestamptz created_at
+    }
+    datasets {
+        uuid id PK
+        text name
+        uuid owner_id FK
+        text team
+        text description
+        text_array tags "GIN-indexed"
+        jsonb metadata "GIN-indexed, queryable"
+        uuid latest_version_id FK
+        timestamptz created_at
+        timestamptz updated_at
+    }
+    file_versions {
+        uuid id PK
+        uuid dataset_id FK
+        int version_number "unique per dataset"
+        bigint size_bytes
+        text checksum
+        text s3_key
+        text state "PENDING or ACTIVE"
+        timestamptz created_at
+    }
+```
+
+The schema is owned by [Liquibase changesets](src/main/resources/db/changelog/) — see [Design decisions](#design-decisions).
+
 ## Tech stack
 
 Java 21 · Spring Boot 3 · Spring Security (JWT / OAuth2 resource server) · Spring Data JPA · PostgreSQL (JSONB + GIN) · Liquibase · AWS S3 (LocalStack for local dev) · Gradle · JUnit + Testcontainers · Playwright (API E2E) · GitHub Actions · Docker Compose
 
-## Run it
+## Running locally
+
+**Prerequisites: [Docker Desktop](https://www.docker.com/products/docker-desktop/)** (or Docker Engine with Compose v2). That's the only installation — no local Java, Gradle, or Postgres required.
+
+### One command — full stack
 
 ```bash
+git clone <this-repo> && cd datacatalog
 docker compose up
-curl localhost:8083/health
+curl localhost:8083/health    # → {"status":"UP",...}
 ```
 
-Requires only Docker — the app image builds itself, and Postgres + LocalStack (S3) start alongside it.
+This compiles the app inside Docker (multi-stage build) and starts three containers: the API on **:8083**, Postgres 16 on **:5432**, and LocalStack S3 on **:4566**. Liquibase migrates the schema automatically on startup.
 
-To develop locally:
+### Developer loop — faster feedback
 
 ```bash
-./gradlew build        # downloads JDK 21 automatically via toolchain if needed
-./gradlew bootRun
+docker compose up -d postgres localstack   # infra only
+./gradlew bootRun                          # API on :8083
+./gradlew test                             # tests boot their own Postgres via Testcontainers
 ```
+
+No JDK setup needed even for development: the Gradle wrapper is checked in, and the build auto-provisions JDK 21 through the toolchain resolver on first run.
+
+> **About the local credentials:** compose starts Postgres with throwaway `datacatalog`/`datacatalog` credentials that exist only inside your machine's Docker network (override with `DB_PASSWORD=… docker compose up`). Production would never use these — see [Secrets stay out of the repo](#secrets-stay-out-of-the-repo).
 
 ## API (Phase 0)
 
@@ -57,6 +105,10 @@ To develop locally:
 ### PostgreSQL + JSONB with a GIN index
 
 Dataset metadata is user-defined and varies per dataset, so it cannot live in fixed columns — but it must stay queryable. A `jsonb` column with a GIN index gives schemaless writes and indexed containment queries (`metadata @> '{"region": "emea"}'`) in the same store as the relational data: transactional consistency with datasets/versions, joins for free, and no second system to operate. The alternatives both lose at this scale — an EAV table turns every multi-key filter into self-joins, and a document DB adds an operational dependency while giving up joins. The default `jsonb_ops` opclass was chosen over the smaller `jsonb_path_ops` because search also needs key-existence operators, not just containment.
+
+### Secrets stay out of the repo
+
+The only credentials in this repository are throwaway defaults for the local Docker network. The app reads every connection setting from environment variables (`DB_HOST`, `DB_USER`, `DB_PASSWORD`, …), so a production deployment injects real values at runtime — typically from AWS Secrets Manager or SSM Parameter Store, rotated without a code change. Better still, the password can disappear entirely: RDS supports IAM database authentication, and S3 access in production uses IAM roles, not access keys. The principle: the repo defines *which* configuration exists, the environment supplies its *values*.
 
 ### Liquibase owns the schema
 

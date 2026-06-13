@@ -5,6 +5,7 @@ services:
       - "8083:8083"
     environment:
       DB_HOST: postgres
+      DB_PASSWORD: ${DB_PASSWORD:-datacatalog}
     depends_on:
       postgres:
         condition: service_healthy
@@ -16,7 +17,7 @@ services:
     environment:
       POSTGRES_DB: datacatalog
       POSTGRES_USER: datacatalog
-      POSTGRES_PASSWORD: datacatalog
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-datacatalog}
     ports:
       - "5432:5432"
     healthcheck:
