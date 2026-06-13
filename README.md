@@ -18,7 +18,7 @@ flowchart LR
     Client -->|PUT / GET file bytes\ndirectly via pre-signed URL| S3
 ```
 
-File bytes never pass through the application tier — the API issues pre-signed S3 URLs and the client transfers directly to/from object storage.
+File bytes never pass through the application tier — the API issues pre-signed S3 URLs and the client transfers directly to/from object storage. Deeper dive: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ## Data model
 
