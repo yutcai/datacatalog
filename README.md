@@ -64,7 +64,7 @@ Java 21 · Spring Boot 3 · Spring Security (JWT / OAuth2 resource server) · Sp
 
 ## Running locally
 
-**Prerequisites: [Docker Desktop](https://www.docker.com/products/docker-desktop/)** (or Docker Engine with Compose v2). That's the only installation — no local Java, Gradle, or Postgres required.
+**Prerequisites:** [Docker Desktop](https://www.docker.com/products/docker-desktop/) (or Docker Engine with Compose v2).
 
 ### One command — full stack
 
