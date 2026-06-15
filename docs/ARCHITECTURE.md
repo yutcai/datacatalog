@@ -75,6 +75,7 @@ Schema is owned by [Liquibase changesets](../src/main/resources/db/changelog/) (
 - **Errors (designed):** RFC 7807 `application/problem+json` everywhere via Spring's `ProblemDetail`.
 - **Configuration:** all connection settings come from environment variables; the repo ships only throwaway local-dev defaults. See [README → Secrets](../README.md#secrets-stay-out-of-the-repo).
 - **Health:** Actuator at `GET /health` with liveness/readiness groups, wired into compose healthchecks.
+- **API docs:** springdoc serves an OpenAPI 3 spec (`/v3/api-docs`) and Swagger UI (`/swagger-ui.html`), both permitted without auth so the API is browsable. Disabled under the `prod` profile so the surface isn't published in production.
 
 ## Testing strategy
 

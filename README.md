@@ -78,6 +78,31 @@ curl localhost:8083/health    # → {"status":"UP",...}
 
 This compiles the app inside Docker (multi-stage build) and starts three containers: the API on **:8083**, Postgres 16 on **:5432**, and LocalStack S3 on **:4566**. Liquibase migrates the schema automatically on startup.
 
+**Try the API in your browser:** open **http://localhost:8083/swagger-ui.html** — register a user, call `/v1/auth/token`, click **Authorize** to paste the token, then exercise the protected endpoints. The raw OpenAPI spec is at `/v3/api-docs`. (These are dev conveniences and are disabled under the `prod` profile — run production with `SPRING_PROFILES_ACTIVE=prod`.)
+
+### Walk through the API (curl)
+
+Prefer the terminal? The same happy path:
+
+```bash
+# 1. Register a user — inserts a row in `users`, password stored BCrypt-hashed
+curl -s -X POST localhost:8083/v1/auth/register \
+  -H 'Content-Type: application/json' \
+  -d '{"username":"alice","password":"s3cret-pw"}' -w '-> %{http_code}\n'
+
+# 2. Exchange credentials for a JWT, capture it into $TOKEN
+#    (needs jq; or run the call alone and copy "accessToken" from the JSON)
+TOKEN=$(curl -s -X POST localhost:8083/v1/auth/token \
+  -H 'Content-Type: application/json' \
+  -d '{"username":"alice","password":"s3cret-pw"}' | jq -r .accessToken)
+
+# 3. Call a protected endpoint with the bearer token -> 200 + your user
+curl -s localhost:8083/v1/me -H "Authorization: Bearer $TOKEN"; echo
+
+# 4. Without a token -> 401, proving the endpoint is secured
+curl -s -o /dev/null -w '/v1/me without token -> %{http_code}\n' localhost:8083/v1/me
+```
+
 ### Developer loop — faster feedback
 
 ```bash
@@ -89,6 +114,19 @@ docker compose up -d postgres localstack   # infra only
 No JDK setup needed even for development: the Gradle wrapper is checked in, and the build auto-provisions JDK 21 through the toolchain resolver on first run.
 
 > **About the local credentials:** compose starts Postgres with throwaway `datacatalog`/`datacatalog` credentials that exist only inside your machine's Docker network (override with `DB_PASSWORD=… docker compose up`). Production would never use these — see [Secrets stay out of the repo](#secrets-stay-out-of-the-repo).
+
+### Connect to the database
+
+```bash
+# psql inside the running container
+docker compose exec postgres psql -U datacatalog -d datacatalog
+
+# …or from any external client (psql, DBeaver, TablePlus, IntelliJ):
+#   host=localhost  port=5432  db=datacatalog  user=datacatalog  password=datacatalog
+psql "postgresql://datacatalog:datacatalog@localhost:5432/datacatalog"
+```
+
+Useful once connected: `\dt` (list tables), `select username, created_at from users;`, `select id, name, metadata from datasets;`. The schema and what ran is recorded in `databasechangelog` (Liquibase). Connection values are the local-dev defaults noted above.
 
 ## API (Phase 0)
 
@@ -129,6 +167,8 @@ The schema is defined in versioned, reviewable SQL changesets that run automatic
 ### Stateless JWT auth, issuer decoupled from validation
 
 Every endpoint except `/health` and `/v1/auth/**` requires a signed JWT (RS256); the current user is taken from the verified token `sub`, never from a request body. The app validates tokens as a standard Spring Security OAuth2 *resource server*. It also issues them — `/v1/auth/token` signs with a per-instance RSA key — but issuance and validation are deliberately decoupled: in production the issuer becomes a real identity provider (Cognito/Auth0/Keycloak) addressed by `issuer-uri`, and the validation half of the code does not change. Passwords are stored BCrypt-hashed; the session policy is stateless (no server-side session, so CSRF protection — which guards cookie auth — is disabled by design).
+
+**Current grant model:** `/v1/auth/token` is a direct username/password exchange — the shape of OAuth2's *resource-owner-password* grant, used here as a self-contained stand-in, **not** a full authorization server. (That grant is deprecated in OAuth 2.1 precisely because the app sees the password; the *resource server* half above is the production-grade part.) Browser-redirect social login — OAuth2 **Authorization Code + PKCE** with an external IdP such as Google, where the app never sees the password — is the documented next step in the [roadmap](docs/ROADMAP.md).
 
 *To be expanded as each slice lands:*
 

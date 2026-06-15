@@ -1,0 +1,10 @@
+# Production profile — activate with SPRING_PROFILES_ACTIVE=prod
+#
+# The OpenAPI spec and Swagger UI are developer/demo conveniences. Turning them
+# off in production avoids publishing the full API surface (and its schema) to
+# the internet. Everything else is inherited from application.yml.
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false
