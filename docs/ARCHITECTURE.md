@@ -52,8 +52,10 @@ Package-by-feature: each package is a vertical slice owning its controller, serv
 
 ```
 io.datacatalog
+├── auth/       register / token endpoints, JWT issuing
+├── user/       User entity + repository, /v1/me (current user)
+├── config/     SecurityConfig (resource server), JwtConfig
 ├── common/     error handling (RFC 7807 ProblemDetail), pagination   (designed)
-├── config/     SecurityConfig, S3Config                              (designed)
 ├── dataset/    Dataset CRUD + search                                 (designed)
 └── version/    FileVersion lifecycle + pre-signing                   (designed)
 ```
@@ -69,7 +71,7 @@ Schema is owned by [Liquibase changesets](../src/main/resources/db/changelog/) (
 
 ## Cross-cutting
 
-- **Auth (designed):** OAuth2 resource server; every request authenticated by JWT. The current user is always derived from the token — never from a request body. Minimal `users` table backs ownership.
+- **Auth:** OAuth2 resource server; every request outside `/health` and `/v1/auth/**` is authenticated by a signed JWT (RS256). The current user is always derived from the token `sub` — never from a request body. The app also issues tokens (`/v1/auth/token`, BCrypt password check) with a per-instance RSA key; issuance is decoupled from validation so a real IdP can replace it via `issuer-uri`. Minimal `users` table backs ownership.
 - **Errors (designed):** RFC 7807 `application/problem+json` everywhere via Spring's `ProblemDetail`.
 - **Configuration:** all connection settings come from environment variables; the repo ships only throwaway local-dev defaults. See [README → Secrets](../README.md#secrets-stay-out-of-the-repo).
 - **Health:** Actuator at `GET /health` with liveness/readiness groups, wired into compose healthchecks.

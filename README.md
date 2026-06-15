@@ -92,6 +92,16 @@ No JDK setup needed even for development: the Gradle wrapper is checked in, and 
 
 ## API (Phase 0)
 
+Authentication:
+
+| Method | Path | Purpose |
+|---|---|---|
+| POST | `/v1/auth/register` | Create a user (password stored BCrypt-hashed) |
+| POST | `/v1/auth/token` | Exchange username/password → signed JWT |
+| GET | `/v1/me` | Current user, derived from the JWT (protected) |
+
+Catalog (all protected — require a `Bearer` token):
+
 | Method | Path | Purpose |
 |---|---|---|
 | POST | `/v1/datasets` | Create catalog entry → `datasetId` |
@@ -115,6 +125,10 @@ The only credentials in this repository are throwaway defaults for the local Doc
 ### Liquibase owns the schema
 
 The schema is defined in versioned, reviewable SQL changesets that run automatically on startup; the `databasechangelog` table records exactly what ran in every environment. Hibernate is pinned to `ddl-auto: validate`, so entity/schema drift fails fast at boot instead of being silently "fixed" in production. Every changeset declares a rollback. Tables are plain DDL on purpose: JSONB, GIN indexes, and check constraints are Postgres features, and hiding them behind an abstraction layer would only obscure what is actually deployed.
+
+### Stateless JWT auth, issuer decoupled from validation
+
+Every endpoint except `/health` and `/v1/auth/**` requires a signed JWT (RS256); the current user is taken from the verified token `sub`, never from a request body. The app validates tokens as a standard Spring Security OAuth2 *resource server*. It also issues them — `/v1/auth/token` signs with a per-instance RSA key — but issuance and validation are deliberately decoupled: in production the issuer becomes a real identity provider (Cognito/Auth0/Keycloak) addressed by `issuer-uri`, and the validation half of the code does not change. Passwords are stored BCrypt-hashed; the session policy is stateless (no server-side session, so CSRF protection — which guards cookie auth — is disabled by design).
 
 *To be expanded as each slice lands:*
 
