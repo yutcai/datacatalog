@@ -67,3 +67,7 @@ Non-deterministic AI features need their own regression strategy.
 **Done when:**
 
 - [ ] Large files upload via multipart end-to-end, with tests covering resume after interruption
+
+## Backlog — candidate enhancements (unscheduled)
+
+- **Login with Google (OAuth2 Authorization Code + PKCE).** Social sign-in via Google as the identity provider — the user authenticates at Google, the app never sees the password (the proper Authorization Code flow, versus the local password endpoint used today). Fits the existing model cleanly: `users.password_hash` is already nullable for exactly this kind of federated identity. Likely `spring-boot-starter-oauth2-client` on the issuing side, with accounts linked by verified email.
