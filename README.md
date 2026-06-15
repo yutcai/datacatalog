@@ -139,4 +139,4 @@ Every endpoint except `/health` and `/v1/auth/**` requires a signed JWT (RS256);
 
 ## AI-assisted development
 
-This project is built with [Claude Code](https://claude.com/claude-code) as a deliberate exercise in AI-assisted engineering: spec-first prompts, incremental vertical slices, tests written alongside every change, and human review of every diff. Commits carry `Co-Authored-By: Claude` trailers; the agent's project instructions live in [CLAUDE.md](CLAUDE.md).
+This project is built with [Claude Code](https://claude.com/claude-code) as a deliberate exercise in AI-assisted engineering: spec-first prompts, incremental vertical slices, tests written alongside every change, and human review of every diff. Commits carry `Co-Authored-By: Claude` trailers; the agent's project instructions live in [CLAUDE.md](CLAUDE.md); and [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) documents the workflow in full — including where the AI's first attempt was wrong and how it was caught.
