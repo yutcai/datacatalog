@@ -168,6 +168,8 @@ The schema is defined in versioned, reviewable SQL changesets that run automatic
 
 Every endpoint except `/health` and `/v1/auth/**` requires a signed JWT (RS256); the current user is taken from the verified token `sub`, never from a request body. The app validates tokens as a standard Spring Security OAuth2 *resource server*. It also issues them — `/v1/auth/token` signs with a per-instance RSA key — but issuance and validation are deliberately decoupled: in production the issuer becomes a real identity provider (Cognito/Auth0/Keycloak) addressed by `issuer-uri`, and the validation half of the code does not change. Passwords are stored BCrypt-hashed; the session policy is stateless (no server-side session, so CSRF protection — which guards cookie auth — is disabled by design).
 
+**Current grant model:** `/v1/auth/token` is a direct username/password exchange — the shape of OAuth2's *resource-owner-password* grant, used here as a self-contained stand-in, **not** a full authorization server. (That grant is deprecated in OAuth 2.1 precisely because the app sees the password; the *resource server* half above is the production-grade part.) Browser-redirect social login — OAuth2 **Authorization Code + PKCE** with an external IdP such as Google, where the app never sees the password — is the documented next step in the [roadmap](docs/ROADMAP.md).
+
 *To be expanded as each slice lands:*
 
 - **Pre-signed URLs** — why file bytes bypass the app tier
