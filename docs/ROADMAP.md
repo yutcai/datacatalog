@@ -14,7 +14,7 @@ A complete, runnable metadata catalog: REST API, S3 pre-signed upload/download, 
 - [ ] JWT / OAuth2 resource server protects all write endpoints
 - [ ] Playwright E2E covers the full happy path plus edge cases: 401 unauthorized, 404 not found, downloading a PENDING version
 - [ ] JUnit + Testcontainers cover a Postgres-backed slice
-- [ ] CI green on GitHub Actions, badge in README
+- [x] CI green on GitHub Actions, badge in README
 - [x] `docker compose up` starts app + Postgres + LocalStack with one command
 - [ ] README: problem statement, architecture diagram, design trade-offs, run instructions
 - [ ] Repository public on GitHub

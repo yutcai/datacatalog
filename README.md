@@ -1,5 +1,7 @@
 # DataCatalog
 
+[![CI](https://github.com/yutcai/datacatalog/actions/workflows/ci.yml/badge.svg)](https://github.com/yutcai/datacatalog/actions/workflows/ci.yml)
+
 A metadata-driven data catalog: store data files in S3 together with rich, queryable metadata in PostgreSQL — upload/download via pre-signed URLs, secured with JWT, with search, filtering, pagination, and immutable versioning.
 
 > **Status:** Phase 0 in progress — scaffolding complete, endpoints under construction. See the [roadmap](docs/ROADMAP.md) for each phase's Definition of Done.
