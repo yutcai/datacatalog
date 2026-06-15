@@ -56,7 +56,7 @@ io.datacatalog
 ├── user/       User entity + repository, /v1/me (current user)
 ├── config/     SecurityConfig (resource server), JwtConfig
 ├── common/     error handling (RFC 7807 ProblemDetail), pagination   (designed)
-├── dataset/    Dataset CRUD + search                                 (designed)
+├── dataset/    create + get done; PATCH + search                     (designed)
 └── version/    FileVersion lifecycle + pre-signing                   (designed)
 ```
 
