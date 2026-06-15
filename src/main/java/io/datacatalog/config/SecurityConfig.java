@@ -25,6 +25,9 @@ public class SecurityConfig {
                         // of the /error re-dispatch being treated as an unauthenticated 401.
                         .dispatcherTypeMatchers(DispatcherType.ERROR, DispatcherType.FORWARD).permitAll()
                         .requestMatchers("/health", "/health/**", "/v1/auth/**").permitAll()
+                        // OpenAPI spec + Swagger UI are public so the API is browsable without a token
+                        .requestMatchers("/v3/api-docs", "/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html")
+                        .permitAll()
                         .anyRequest().authenticated())
                 // Stateless bearer-token API: no session to forge against, so CSRF protection
                 // (which guards cookie/session auth) is not applicable.
