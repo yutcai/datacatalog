@@ -31,15 +31,18 @@ class SchemaTest {
 
     @Test
     void metadataIsQueryableWithJsonbContainment() {
+        // Unique marker so the count is deterministic even though other tests
+        // share this database and also write datasets.
         UUID ownerId = insertUser("schema-test-alice");
+        String region = "emea-" + UUID.randomUUID();
         jdbc.update("""
                 insert into datasets (name, owner_id, metadata)
-                values (?, ?, ?::jsonb)
-                """, "sales-2025", ownerId, "{\"region\": \"emea\", \"format\": \"parquet\"}");
+                values (?, ?, jsonb_build_object('region', ?::text, 'format', 'parquet'))
+                """, "sales-2025", ownerId, region);
 
-        Integer hits = jdbc.queryForObject("""
-                select count(*) from datasets where metadata @> '{"region": "emea"}'::jsonb
-                """, Integer.class);
+        Integer hits = jdbc.queryForObject(
+                "select count(*) from datasets where metadata @> jsonb_build_object('region', ?::text)",
+                Integer.class, region);
 
         assertThat(hits).isEqualTo(1);
     }
