@@ -82,25 +82,40 @@ This compiles the app inside Docker (multi-stage build) and starts three contain
 
 ### Walk through the API (curl)
 
-Prefer the terminal? The same happy path:
+Prefer the terminal? The full happy path — auth, then the two-step upload and download. (Uses `jq` to capture ids/URLs; or run each call alone and copy the values by hand.)
 
 ```bash
-# 1. Register a user — inserts a row in `users`, password stored BCrypt-hashed
-curl -s -X POST localhost:8083/v1/auth/register \
-  -H 'Content-Type: application/json' \
+# 1. Register + exchange credentials for a JWT
+curl -s -X POST localhost:8083/v1/auth/register -H 'Content-Type: application/json' \
   -d '{"username":"alice","password":"s3cret-pw"}' -w '-> %{http_code}\n'
-
-# 2. Exchange credentials for a JWT, capture it into $TOKEN
-#    (needs jq; or run the call alone and copy "accessToken" from the JSON)
-TOKEN=$(curl -s -X POST localhost:8083/v1/auth/token \
-  -H 'Content-Type: application/json' \
+TOKEN=$(curl -s -X POST localhost:8083/v1/auth/token -H 'Content-Type: application/json' \
   -d '{"username":"alice","password":"s3cret-pw"}' | jq -r .accessToken)
 
-# 3. Call a protected endpoint with the bearer token -> 200 + your user
-curl -s localhost:8083/v1/me -H "Authorization: Bearer $TOKEN"; echo
+# 2. Create a dataset — the owner is taken from the token, never the body
+DATASET=$(curl -s -X POST localhost:8083/v1/datasets -H "Authorization: Bearer $TOKEN" \
+  -H 'Content-Type: application/json' \
+  -d '{"name":"sales-2025","tags":["sales","emea"],"metadata":{"region":"emea"}}' | jq -r .id)
 
-# 4. Without a token -> 401, proving the endpoint is secured
-curl -s -o /dev/null -w '/v1/me without token -> %{http_code}\n' localhost:8083/v1/me
+# 3. Request an upload -> a PENDING version + a pre-signed S3 PUT URL
+REQUEST=$(curl -s -X POST localhost:8083/v1/datasets/$DATASET/versions -H "Authorization: Bearer $TOKEN")
+VERSION=$(echo "$REQUEST" | jq -r .versionId)
+PUT_URL=$(echo "$REQUEST" | jq -r .uploadUrl)
+
+# 4. Upload bytes DIRECTLY to S3 with the pre-signed URL — they never pass through the app
+echo -n 'hello data catalog' | curl -s -o /dev/null -w 'upload -> %{http_code}\n' \
+  -X PUT --data-binary @- "$PUT_URL"
+
+# 5. Complete -> the server HEADs the object and flips the version PENDING -> ACTIVE
+curl -s -X POST localhost:8083/v1/datasets/$DATASET/versions/$VERSION/complete \
+  -H "Authorization: Bearer $TOKEN"; echo
+
+# 6. Download -> a pre-signed GET URL; fetch the same bytes back
+DL_URL=$(curl -s localhost:8083/v1/datasets/$DATASET/versions/$VERSION/download \
+  -H "Authorization: Bearer $TOKEN" | jq -r .downloadUrl)
+curl -s "$DL_URL"; echo    # -> hello data catalog
+
+# Auth is enforced: the same call without a token -> 401
+curl -s -o /dev/null -w 'no token -> %{http_code}\n' localhost:8083/v1/datasets/$DATASET
 ```
 
 ### Developer loop — faster feedback
