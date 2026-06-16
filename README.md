@@ -132,16 +132,40 @@ No JDK setup needed even for development: the Gradle wrapper is checked in, and 
 
 ### Connect to the database
 
-```bash
-# psql inside the running container
-docker compose exec postgres psql -U datacatalog -d datacatalog
+With the stack running (`docker compose up`), Postgres is exposed on **localhost:5432**. Connection details (local-dev defaults):
 
-# …or from any external client (psql, DBeaver, TablePlus, IntelliJ):
-#   host=localhost  port=5432  db=datacatalog  user=datacatalog  password=datacatalog
+| Setting | Value |
+|---|---|
+| host | `localhost` |
+| port | `5432` |
+| database | `datacatalog` |
+| user | `datacatalog` |
+| password | `datacatalog` |
+
+**Option 1 — no install needed** (psql runs inside the container):
+
+```bash
+docker compose exec postgres psql -U datacatalog -d datacatalog
+```
+
+**Option 2 — psql on your host:**
+
+```bash
 psql "postgresql://datacatalog:datacatalog@localhost:5432/datacatalog"
 ```
 
-Useful once connected: `\dt` (list tables), `select username, created_at from users;`, `select id, name, metadata from datasets;`. The schema and what ran is recorded in `databasechangelog` (Liquibase). Connection values are the local-dev defaults noted above.
+**Option 3 — a GUI client** (DBeaver, TablePlus, IntelliJ Database, pgAdmin): create a PostgreSQL connection with the values from the table above.
+
+Once connected, look at what the API created:
+
+```sql
+\dt                                                   -- list tables
+select username, created_at from users;               -- registered users
+select id, name, tags, metadata from datasets;        -- catalog entries (JSONB metadata)
+select dataset_id, version_number, state, size_bytes  -- versions: PENDING vs ACTIVE
+  from file_versions order by created_at;
+select * from databasechangelog;                      -- what Liquibase migrations ran
+```
 
 ## API (Phase 0)
 
