@@ -14,7 +14,7 @@ flowchart LR
 
 The API is a stateless metadata service. It never touches file bytes: uploads and downloads go directly between the client and S3 using short-lived pre-signed URLs issued by the API. Postgres holds everything queryable — catalog entries, immutable version records, and user-defined metadata as indexed JSONB.
 
-## The core flow: two-step upload **(designed)**
+## The core flow: two-step upload
 
 ```mermaid
 sequenceDiagram
@@ -57,7 +57,8 @@ io.datacatalog
 ├── config/     SecurityConfig (resource server), JwtConfig
 ├── common/     error handling (RFC 7807 ProblemDetail), pagination   (designed)
 ├── dataset/    create + get done; PATCH + search                     (designed)
-└── version/    FileVersion lifecycle + pre-signing                   (designed)
+├── storage/    S3 pre-signing + object verification
+└── version/    FileVersion lifecycle (request-upload/complete/download)
 ```
 
 ## Persistence

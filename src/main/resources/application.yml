@@ -16,6 +16,17 @@ spring:
   liquibase:
     change-log: classpath:db/changelog/db.changelog-master.yaml
 
+app:
+  s3:
+    bucket: ${S3_BUCKET:datacatalog}
+    region: ${AWS_REGION:us-east-1}
+    # endpoint set for LocalStack/local dev; blank => real AWS (default credential chain)
+    endpoint: ${S3_ENDPOINT:}
+    # the host the client must reach for pre-signed URLs; defaults to `endpoint` when unset
+    public-endpoint: ${S3_PUBLIC_ENDPOINT:}
+    access-key: ${AWS_ACCESS_KEY_ID:}
+    secret-key: ${AWS_SECRET_ACCESS_KEY:}
+
 management:
   endpoints:
     web:

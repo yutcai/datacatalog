@@ -170,12 +170,14 @@ Every endpoint except `/health` and `/v1/auth/**` requires a signed JWT (RS256);
 
 **Current grant model:** `/v1/auth/token` is a direct username/password exchange — the shape of OAuth2's *resource-owner-password* grant, used here as a self-contained stand-in, **not** a full authorization server. (That grant is deprecated in OAuth 2.1 precisely because the app sees the password; the *resource server* half above is the production-grade part.) Browser-redirect social login — OAuth2 **Authorization Code + PKCE** with an external IdP such as Google, where the app never sees the password — is the documented next step in the [roadmap](docs/ROADMAP.md).
 
+### Pre-signed URLs and the two-step upload
+
+File bytes never pass through the application tier. To upload, the client calls `request-upload`, which creates a **PENDING** version and returns a pre-signed S3 PUT URL; the client transfers the bytes straight to S3; then `complete` runs. Because the server never witnesses that transfer, `complete` doesn't trust the client — it **HEADs the object** and only flips PENDING → ACTIVE if the bytes are really there, recording the server-observed size and checksum (ETag). An abandoned upload just stays PENDING: invisible to reads, never downloadable, harmless (production would expire orphans with an S3 lifecycle rule). Download issues a pre-signed GET URL for ACTIVE versions only. One subtlety the local stack makes concrete: a pre-signed URL's host must be reachable *by the client*, which can differ from the address the app uses to reach S3 — so the presigner uses a separate public endpoint.
+
 *To be expanded as each slice lands:*
 
-- **Pre-signed URLs** — why file bytes bypass the app tier
-- **Immutable versions with a PENDING → ACTIVE state machine** — why upload is a two-step protocol
-- **Sync API, no async pipeline yet** — and where a queue would slot in
-- **No multipart upload yet** — implies a practical size cap; how multipart would be added
+- **Sync API, no async pipeline yet** — and where the `dataset.version.activated` event + a consumer slot in (Phase 1)
+- **No multipart upload yet** — implies a practical size cap; how multipart would be added (Phase 3)
 
 ## AI-assisted development
 

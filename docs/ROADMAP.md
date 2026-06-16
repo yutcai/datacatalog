@@ -8,12 +8,12 @@ A complete, runnable metadata catalog: REST API, S3 pre-signed upload/download, 
 
 **Done when:**
 
-- [ ] All 7 `/v1/datasets*` endpoints work end-to-end: create → request upload → direct PUT to S3 → complete → search → download
-- [ ] Current user is derived from the JWT, never from the request body
+- [ ] All 7 `/v1/datasets*` endpoints work end-to-end: create → request upload → direct PUT to S3 → complete → search → download *(5/7 — create, get, request-upload, complete, download; search + PATCH pending)*
+- [x] Current user is derived from the JWT, never from the request body
 - [x] Postgres schema managed by Liquibase; metadata queryable via JSONB + GIN index
 - [x] JWT / OAuth2 resource server protects all write endpoints
 - [ ] Playwright E2E covers the full happy path plus edge cases: 401 unauthorized, 404 not found, downloading a PENDING version
-- [ ] JUnit + Testcontainers cover a Postgres-backed slice
+- [x] JUnit + Testcontainers cover a Postgres-backed slice (Postgres + LocalStack S3)
 - [x] CI green on GitHub Actions, badge in README
 - [x] `docker compose up` starts app + Postgres + LocalStack with one command
 - [ ] README: problem statement, architecture diagram, design trade-offs, run instructions
