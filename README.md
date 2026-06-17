@@ -15,9 +15,9 @@ Data files scattered across shared drives and buckets are effectively lost: nobo
 ```mermaid
 flowchart LR
     Client -->|JWT| API[Spring Boot API]
-    API -->|metadata queries| PG[(PostgreSQL\nJSONB + GIN)]
+    API -->|metadata queries| PG[("PostgreSQL<br/>JSONB + GIN")]
     API -->|pre-signed URLs| S3[(S3 / LocalStack)]
-    Client -->|PUT / GET file bytes\ndirectly via pre-signed URL| S3
+    Client -->|"PUT / GET file bytes<br/>directly via pre-signed URL"| S3
 ```
 
 File bytes never pass through the application tier — the API issues pre-signed S3 URLs and the client transfers directly to/from object storage. Deeper dive: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
