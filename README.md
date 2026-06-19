@@ -101,7 +101,9 @@ REQUEST=$(curl -s -X POST localhost:8083/v1/datasets/$DATASET/versions -H "Autho
 VERSION=$(echo "$REQUEST" | jq -r .versionId)
 PUT_URL=$(echo "$REQUEST" | jq -r .uploadUrl)
 
-# 4. Upload bytes DIRECTLY to S3 with the pre-signed URL — they never pass through the app
+# 4. Upload bytes DIRECTLY to S3 with the pre-signed URL — they never pass through the app.
+#    You don't create the S3 key yourself: request-upload already minted it; the PUT just fills it.
+#    (swap in a real file with `--upload-file ./some.csv`; verify it landed via "Connect to S3" below)
 echo -n 'hello data catalog' | curl -s -o /dev/null -w 'upload -> %{http_code}\n' \
   -X PUT --data-binary @- "$PUT_URL"
 
@@ -166,6 +168,37 @@ select dataset_id, version_number, state, size_bytes  -- versions: PENDING vs AC
   from file_versions order by created_at;
 select * from databasechangelog;                      -- what Liquibase migrations ran
 ```
+
+### Connect to S3 (LocalStack)
+
+File bytes live in S3 — locally, a [LocalStack](https://www.localstack.cloud/) container exposed on **localhost:4566**, holding a `datacatalog` bucket. The app never proxies bytes; clients PUT/GET them directly via pre-signed URLs. To inspect what actually landed, point the AWS CLI at the local endpoint (local-dev defaults):
+
+| Setting | Value |
+|---|---|
+| endpoint | `http://localhost:4566` |
+| region | `us-east-1` |
+| bucket | `datacatalog` |
+| access key | `test` |
+| secret key | `test` |
+
+**Option 1 — no install needed** (`awslocal` ships inside the LocalStack container, pre-pointed at the local endpoint):
+
+```bash
+docker compose exec localstack awslocal s3 ls s3://datacatalog --recursive
+```
+
+**Option 2 — AWS CLI on your host** (every object key is `datasets/<datasetId>/versions/<uuid>`):
+
+```bash
+export AWS_ACCESS_KEY_ID=test AWS_SECRET_ACCESS_KEY=test AWS_REGION=us-east-1
+alias awslocal='aws --endpoint-url http://localhost:4566'
+
+awslocal s3 ls s3://datacatalog --recursive          # list uploaded objects
+awslocal s3 cp s3://datacatalog/<key> -              # stream an object's bytes to stdout
+awslocal s3api head-object --bucket datacatalog --key <key>   # size + ETag the app records on complete
+```
+
+This is how to confirm a pre-signed PUT really landed: after step 4 of the [curl walkthrough](#walk-through-the-api-curl), `s3 ls` shows the object — and `complete` only flips the version to ACTIVE because the server sees the same object via a HEAD request.
 
 ## API (Phase 0)
 
