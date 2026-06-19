@@ -12,13 +12,26 @@ A complete, runnable metadata catalog: REST API, S3 pre-signed upload/download, 
 - [x] Current user is derived from the JWT, never from the request body
 - [x] Postgres schema managed by Liquibase; metadata queryable via JSONB + GIN index
 - [x] JWT / OAuth2 resource server protects all write endpoints
-- [ ] Playwright E2E covers the full happy path plus edge cases: 401 unauthorized, 404 not found, downloading a PENDING version
+- [ ] Playwright E2E covers the full happy path plus edge cases: 401 unauthorized, 404 not found, downloading a PENDING version *(delivered as **browser** E2E through the UI in Phase 0.5)*
 - [x] JUnit + Testcontainers cover a Postgres-backed slice (Postgres + LocalStack S3)
 - [x] CI green on GitHub Actions, badge in README
 - [x] `docker compose up` starts app + Postgres + LocalStack with one command
 - [ ] README: problem statement, architecture diagram, design trade-offs, run instructions
 - [ ] Repository public on GitHub
 - [ ] *(stretch)* Deployed with a live URL
+
+## Phase 0.5 — Thin web UI + browser E2E
+
+A deliberately thin but dynamic React UI over the existing 7 endpoints, so the project
+demonstrates full-stack work and **browser** end-to-end testing (Playwright) — not just API
+flows. The API contract stays owned by the JUnit/Testcontainers suite; Playwright owns the UI
+layer. Design: [docs/specs/2026-06-19-thin-ui-browser-e2e.md](specs/2026-06-19-thin-ui-browser-e2e.md).
+
+**Done when:**
+
+- [ ] React + Vite + TypeScript UI (login, list+search, create, detail+upload) wired to the live API
+- [ ] Built UI served same-origin by Spring; `docker compose up` serves app + UI + infra together
+- [ ] Playwright browser E2E covers the happy path through the UI plus edges (login failure, unauthenticated redirect, 404, PENDING download, non-owner forbidden), green in CI with an HTML report artifact
 
 ## Phase 1 — AI layer
 
