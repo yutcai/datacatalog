@@ -13,7 +13,6 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.client.TestRestTemplate;
-import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
@@ -40,8 +39,6 @@ class DatasetPatchTest {
     private TestRestTemplate rest;
     @Autowired
     private ObjectMapper mapper;
-    @LocalServerPort
-    private int port;
 
     @Test
     void ownerCanUpdateScalarFieldsAndTags() throws Exception {
@@ -133,8 +130,10 @@ class DatasetPatchTest {
     }
 
     private Response patch(String id, Map<String, Object> body, String token) throws Exception {
+        // rest.getRootUri() is the embedded test server's own base (http://localhost:<random-port>),
+        // resolved by Spring — not an environment endpoint, so nothing to configure here.
         HttpRequest.Builder req = HttpRequest.newBuilder()
-                .uri(URI.create("http://localhost:" + port + "/v1/datasets/" + id))
+                .uri(URI.create(rest.getRootUri() + "/v1/datasets/" + id))
                 .header("Content-Type", "application/json")
                 .method("PATCH", HttpRequest.BodyPublishers.ofString(mapper.writeValueAsString(body)));
         if (token != null) {
