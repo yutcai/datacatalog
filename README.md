@@ -82,7 +82,7 @@ This compiles the app inside Docker (multi-stage build) and starts three contain
 
 ### Walk through the API (curl)
 
-Prefer the terminal? The full happy path — auth, then the two-step upload and download. (Uses `jq` to capture ids/URLs; or run each call alone and copy the values by hand.)
+Prefer the terminal? The full happy path — auth, the two-step upload and download, then search and a partial update. (Uses `jq` to capture ids/URLs; or run each call alone and copy the values by hand.)
 
 ```bash
 # 1. Register + exchange credentials for a JWT
@@ -115,6 +115,16 @@ curl -s -X POST localhost:8083/v1/datasets/$DATASET/versions/$VERSION/complete \
 DL_URL=$(curl -s localhost:8083/v1/datasets/$DATASET/versions/$VERSION/download \
   -H "Authorization: Bearer $TOKEN" | jq -r .downloadUrl)
 curl -s "$DL_URL"; echo    # -> hello data catalog
+
+# 7. Search -> filter by free-text / tag / owner, offset-paginated {items,page,limit,total}
+curl -s "localhost:8083/v1/datasets?q=sales&tag=emea&page=0&limit=10" \
+  -H "Authorization: Bearer $TOKEN" | jq '{total, names: [.items[].name]}'
+
+# 8. Patch -> partial update; metadata is MERGED by key, and only the owner may modify
+curl -s -X PATCH localhost:8083/v1/datasets/$DATASET \
+  -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
+  -d '{"description":"reviewed for Q3","metadata":{"reviewed":true}}' \
+  | jq '{description, metadata}'    # region kept, reviewed added
 
 # Auth is enforced: the same call without a token -> 401
 curl -s -o /dev/null -w 'no token -> %{http_code}\n' localhost:8083/v1/datasets/$DATASET
@@ -245,6 +255,14 @@ Every endpoint except `/health` and `/v1/auth/**` requires a signed JWT (RS256);
 ### Pre-signed URLs and the two-step upload
 
 File bytes never pass through the application tier. To upload, the client calls `request-upload`, which creates a **PENDING** version and returns a pre-signed S3 PUT URL; the client transfers the bytes straight to S3; then `complete` runs. Because the server never witnesses that transfer, `complete` doesn't trust the client — it **HEADs the object** and only flips PENDING → ACTIVE if the bytes are really there, recording the server-observed size and checksum (ETag). An abandoned upload just stays PENDING: invisible to reads, never downloadable, harmless (production would expire orphans with an S3 lifecycle rule). Download issues a pre-signed GET URL for ACTIVE versions only. One subtlety the local stack makes concrete: a pre-signed URL's host must be reachable *by the client*, which can differ from the address the app uses to reach S3 — so the presigner uses a separate public endpoint.
+
+### Search, filtering, and pagination
+
+`GET /v1/datasets` composes three optional, AND-combined filters and returns an offset-paginated envelope (`{ items, page, limit, total }`). `q` is a case-insensitive substring over **name and description** — the free-text prose; `tag` and `metadata` keep their own precise paths (`tags @> ARRAY[tag]` on the GIN index; JSONB containment), because folding structured facets into a fuzzy match both blurs the semantics and gives up the index. `owner` filters by username, resolved to an id first. Pagination is **offset** (`page`/`limit`) — simple and correct for cataloging at this scale; the known trade-off is that deep offsets scan-and-skip and a concurrent insert can shift rows across pages. **Keyset** (seek after the last `created_at`/`id`) is the answer at large scale and is the natural upgrade — same index, a different `WHERE`. Owner usernames for a page are resolved in a single batched lookup, not per row, to avoid an N+1.
+
+### Partial updates and owner-scoped writes
+
+`PATCH /v1/datasets/{id}` is a partial update: any omitted field is left untouched, and `metadata` is **merged by key** (a true patch — existing keys survive) rather than replaced. Writes are **owner-scoped** — only the dataset's owner, taken from the token, may modify it; a non-owner gets `403`, a missing dataset `404` (checked before ownership, so existence isn't leaked). `updated_at` is maintained by a `BEFORE UPDATE` **database trigger**, so it stays correct no matter which client issues the write — the DB owns its timestamps, consistent with the rest of the schema.
 
 *To be expanded as each slice lands:*
 

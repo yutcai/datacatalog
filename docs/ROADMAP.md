@@ -8,7 +8,7 @@ A complete, runnable metadata catalog: REST API, S3 pre-signed upload/download, 
 
 **Done when:**
 
-- [ ] All 7 `/v1/datasets*` endpoints work end-to-end: create → request upload → direct PUT to S3 → complete → search → download *(5/7 — create, get, request-upload, complete, download; search + PATCH pending)*
+- [x] All 7 `/v1/datasets*` endpoints work end-to-end: create → request upload → direct PUT to S3 → complete → search → download *(7/7 — create, get, request-upload, complete, download, search, PATCH)*
 - [x] Current user is derived from the JWT, never from the request body
 - [x] Postgres schema managed by Liquibase; metadata queryable via JSONB + GIN index
 - [x] JWT / OAuth2 resource server protects all write endpoints
