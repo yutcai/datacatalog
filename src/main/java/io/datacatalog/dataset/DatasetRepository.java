@@ -17,6 +17,10 @@ public interface DatasetRepository extends JpaRepository<Dataset, UUID> {
      * — passing {@code null} skips that predicate. {@code owner} arrives as a UUID string so a null
      * binds cleanly (avoids Postgres' null-UUID parameter type inference). {@code q} matches name or
      * description (case-insensitive substring); {@code tag} uses {@code text[]} containment (GIN).
+     *
+     * <p>Ordered by {@code (created_at DESC, id DESC)}: the {@code id} tiebreaker makes paging
+     * deterministic even when timestamps collide, and is the natural cursor key for a future
+     * keyset upgrade.
      */
     @Query(value = """
             SELECT * FROM datasets d
@@ -25,7 +29,7 @@ public interface DatasetRepository extends JpaRepository<Dataset, UUID> {
                    OR d.name ILIKE ('%' || :q || '%')
                    OR d.description ILIKE ('%' || :q || '%'))
               AND (CAST(:tag AS text) IS NULL OR d.tags @> ARRAY[CAST(:tag AS text)])
-            ORDER BY d.created_at DESC
+            ORDER BY d.created_at DESC, d.id DESC
             """,
             countQuery = """
             SELECT count(*) FROM datasets d

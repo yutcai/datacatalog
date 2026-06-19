@@ -1,5 +1,7 @@
 package io.datacatalog;
 
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -16,6 +18,10 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 
+import io.datacatalog.dataset.Dataset;
+import io.datacatalog.dataset.DatasetRepository;
+import io.datacatalog.user.UserRepository;
+
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
@@ -31,6 +37,10 @@ class DatasetSearchTest {
 
     @Autowired
     private TestRestTemplate rest;
+    @Autowired
+    private DatasetRepository datasetRepo;
+    @Autowired
+    private UserRepository userRepo;
 
     @Test
     void filtersByOwnerUsername() {
@@ -89,6 +99,25 @@ class DatasetSearchTest {
     }
 
     @Test
+    void paginationIsStableWhenTimestampsCollide() {
+        String token = authedUser("tiebreak");
+        // Seed 5 rows in ONE transaction so they share an identical created_at — the only
+        // case where ORDER BY created_at alone is ambiguous and a tiebreaker is required.
+        seedSameTimestamp(tokenUsername, 5);
+
+        List<String> ids = new ArrayList<>();
+        for (int page = 0; page < 3; page++) {
+            items(search("?owner=" + tokenUsername + "&page=" + page + "&limit=2", token))
+                    .forEach(m -> ids.add((String) m.get("id")));
+        }
+
+        // Every row appears exactly once and in one deterministic order across page
+        // boundaries — guaranteed only by the (created_at, id) tiebreaker.
+        assertThat(ids).hasSize(5).doesNotHaveDuplicates()
+                .isSortedAccordingTo(Comparator.reverseOrder());
+    }
+
+    @Test
     void searchWithoutTokenIsUnauthorized() {
         ResponseEntity<Map> resp = rest.exchange("/v1/datasets", HttpMethod.GET,
                 new HttpEntity<>(new HttpHeaders()), Map.class);
@@ -110,6 +139,15 @@ class DatasetSearchTest {
 
     private List<Map<String, Object>> items(Map<String, Object> page) {
         return (List<Map<String, Object>>) page.get("items");
+    }
+
+    private void seedSameTimestamp(String owner, int count) {
+        UUID ownerId = userRepo.findByUsername(owner).orElseThrow().getId();
+        List<Dataset> batch = new ArrayList<>();
+        for (int i = 0; i < count; i++) {
+            batch.add(new Dataset("ts-" + i, ownerId, null, null, List.of(), Map.of()));
+        }
+        datasetRepo.saveAll(batch); // single transaction => one shared transaction_timestamp()
     }
 
     private void create(String token, Map<String, Object> body) {
