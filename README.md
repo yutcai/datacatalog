@@ -82,7 +82,7 @@ This compiles the app inside Docker (multi-stage build) and starts three contain
 
 ### Walk through the API (curl)
 
-Prefer the terminal? The full happy path — auth, then the two-step upload and download. (Uses `jq` to capture ids/URLs; or run each call alone and copy the values by hand.)
+Prefer the terminal? The full happy path — auth, the two-step upload and download, then search and a partial update. (Uses `jq` to capture ids/URLs; or run each call alone and copy the values by hand.)
 
 ```bash
 # 1. Register + exchange credentials for a JWT
@@ -115,6 +115,16 @@ curl -s -X POST localhost:8083/v1/datasets/$DATASET/versions/$VERSION/complete \
 DL_URL=$(curl -s localhost:8083/v1/datasets/$DATASET/versions/$VERSION/download \
   -H "Authorization: Bearer $TOKEN" | jq -r .downloadUrl)
 curl -s "$DL_URL"; echo    # -> hello data catalog
+
+# 7. Search -> filter by free-text / tag / owner, offset-paginated {items,page,limit,total}
+curl -s "localhost:8083/v1/datasets?q=sales&tag=emea&page=0&limit=10" \
+  -H "Authorization: Bearer $TOKEN" | jq '{total, names: [.items[].name]}'
+
+# 8. Patch -> partial update; metadata is MERGED by key, and only the owner may modify
+curl -s -X PATCH localhost:8083/v1/datasets/$DATASET \
+  -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
+  -d '{"description":"reviewed for Q3","metadata":{"reviewed":true}}' \
+  | jq '{description, metadata}'    # region kept, reviewed added
 
 # Auth is enforced: the same call without a token -> 401
 curl -s -o /dev/null -w 'no token -> %{http_code}\n' localhost:8083/v1/datasets/$DATASET
