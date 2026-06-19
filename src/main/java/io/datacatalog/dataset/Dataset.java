@@ -53,7 +53,8 @@ public class Dataset {
     @Column(name = "created_at", insertable = false, updatable = false)
     private OffsetDateTime createdAt;
 
-    @Generated(event = EventType.INSERT)
+    // Re-read on UPDATE too: a BEFORE UPDATE trigger refreshes updated_at in the DB.
+    @Generated(event = {EventType.INSERT, EventType.UPDATE})
     @Column(name = "updated_at", insertable = false, updatable = false)
     private OffsetDateTime updatedAt;
 
@@ -83,6 +84,10 @@ public class Dataset {
         return name;
     }
 
+    public void setName(String name) {
+        this.name = name;
+    }
+
     public UUID getOwnerId() {
         return ownerId;
     }
@@ -91,16 +96,38 @@ public class Dataset {
         return team;
     }
 
+    public void setTeam(String team) {
+        this.team = team;
+    }
+
     public String getDescription() {
         return description;
+    }
+
+    public void setDescription(String description) {
+        this.description = description;
     }
 
     public List<String> getTags() {
         return tags;
     }
 
+    public void setTags(List<String> tags) {
+        this.tags = (tags == null) ? new ArrayList<>() : tags;
+    }
+
     public Map<String, Object> getMetadata() {
         return metadata;
+    }
+
+    /**
+     * Merge the given keys into the existing metadata (overwrite/add; unspecified keys kept).
+     * Assigns a new map instance so Hibernate detects the JSONB column as dirty.
+     */
+    public void mergeMetadata(Map<String, Object> incoming) {
+        Map<String, Object> merged = new LinkedHashMap<>(this.metadata == null ? Map.of() : this.metadata);
+        merged.putAll(incoming);
+        this.metadata = merged;
     }
 
     public UUID getLatestVersionId() {
