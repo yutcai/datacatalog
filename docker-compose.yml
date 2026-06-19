@@ -50,5 +50,14 @@ services:
       timeout: 3s
       retries: 10
 
+  # Thin React UI served by nginx, which also reverse-proxies /v1 and /health to the app
+  # so the browser hits a single origin. Open http://localhost:3000.
+  ui:
+    build: ./ui
+    ports:
+      - "3000:80"
+    depends_on:
+      - app
+
 volumes:
   pgdata:

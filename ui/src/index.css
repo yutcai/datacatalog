@@ -1,0 +1,116 @@
+:root {
+  font-family: system-ui, "Segoe UI", Roboto, sans-serif;
+  color: #1a1a1a;
+  background: #f7f7f8;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+}
+
+a {
+  color: #2d6cdf;
+}
+
+header.topbar {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.75rem 1.25rem;
+  background: #fff;
+  border-bottom: 1px solid #e3e3e6;
+}
+
+header.topbar nav {
+  display: flex;
+  gap: 1rem;
+  flex: 1;
+}
+
+main {
+  max-width: 880px;
+  margin: 1.5rem auto;
+  padding: 0 1.25rem;
+}
+
+h1 {
+  font-size: 1.4rem;
+}
+
+label {
+  display: block;
+  margin: 0.6rem 0 0.2rem;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+input,
+textarea {
+  width: 100%;
+  padding: 0.5rem;
+  border: 1px solid #c9c9cf;
+  border-radius: 6px;
+  font: inherit;
+}
+
+button {
+  padding: 0.5rem 0.9rem;
+  border: 1px solid #2d6cdf;
+  background: #2d6cdf;
+  color: #fff;
+  border-radius: 6px;
+  font: inherit;
+  cursor: pointer;
+}
+
+button.secondary {
+  background: #fff;
+  color: #2d6cdf;
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 1rem;
+}
+
+th,
+td {
+  text-align: left;
+  padding: 0.5rem;
+  border-bottom: 1px solid #e3e3e6;
+}
+
+.row {
+  display: flex;
+  gap: 0.75rem;
+  align-items: flex-end;
+  flex-wrap: wrap;
+}
+
+.error {
+  color: #b00020;
+  margin: 0.5rem 0;
+}
+
+.muted {
+  color: #6b6b72;
+  font-size: 0.9rem;
+}
+
+.card {
+  background: #fff;
+  border: 1px solid #e3e3e6;
+  border-radius: 8px;
+  padding: 1rem 1.25rem;
+  margin-bottom: 1rem;
+}

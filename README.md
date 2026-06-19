@@ -62,7 +62,7 @@ The schema is owned by [Liquibase changesets](src/main/resources/db/changelog/) 
 
 ## Tech stack
 
-Java 21 · Spring Boot 3 · Spring Security (JWT / OAuth2 resource server) · Spring Data JPA · PostgreSQL (JSONB + GIN) · Liquibase · AWS S3 (LocalStack for local dev) · Gradle · JUnit + Testcontainers · Playwright (API E2E) · GitHub Actions · Docker Compose
+Java 21 · Spring Boot 3 · Spring Security (JWT / OAuth2 resource server) · Spring Data JPA · PostgreSQL (JSONB + GIN) · Liquibase · AWS S3 (LocalStack for local dev) · Gradle · JUnit + Testcontainers · React + Vite (thin web UI) · Playwright (browser E2E) · GitHub Actions · Docker Compose
 
 ## Running locally
 
@@ -76,7 +76,9 @@ docker compose up
 curl localhost:8083/health    # → {"status":"UP",...}
 ```
 
-This compiles the app inside Docker (multi-stage build) and starts three containers: the API on **:8083**, Postgres 16 on **:5432**, and LocalStack S3 on **:4566**. Liquibase migrates the schema automatically on startup.
+This compiles the app inside Docker (multi-stage build) and starts the API on **:8083**, Postgres 16 on **:5432**, LocalStack S3 on **:4566**, and a thin React **web UI on :3000**. Liquibase migrates the schema automatically on startup.
+
+**Use the web UI:** open **http://localhost:3000** — register/log in, browse and search datasets, create one, and upload a file. nginx serves the SPA and reverse-proxies the API, so the browser talks to a single origin. (The UI is a deliberately thin surface over the same API, primarily to host browser end-to-end tests — see [docs/specs](docs/specs/2026-06-19-thin-ui-browser-e2e.md).)
 
 **Try the API in your browser:** open **http://localhost:8083/swagger-ui.html** — register a user, call `/v1/auth/token`, click **Authorize** to paste the token, then exercise the protected endpoints. The raw OpenAPI spec is at `/v3/api-docs`. (These are dev conveniences and are disabled under the `prod` profile — run production with `SPRING_PROFILES_ACTIVE=prod`.)
 
