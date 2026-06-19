@@ -30,11 +30,15 @@ state libraries (Redux), SSR. No new backend endpoints — the UI consumes the e
 
 - **React + Vite + TypeScript** SPA in `ui/`. Routing via `react-router`. Auth token kept in
   memory + `localStorage`; attached as `Bearer` by a tiny fetch wrapper.
-- **Same-origin serving (no CORS):**
+- **npm is the UI toolchain** (install React/Vite, run `vite build`) — required regardless; it
+  does not replace, and is not replaced by, Gradle. To keep Java/Gradle **untouched**, npm lives
+  only inside the UI's Docker build.
+- **Same-origin serving (no CORS) via a `ui` compose service:**
   - *Dev:* Vite dev server (`:5173`) proxies `/v1`, `/health` → `:8083` (hot reload).
-  - *Built / CI / E2E:* `vite build` output is served **by Spring from `static/`** at `:8083`,
-    so the app and API share an origin. A Gradle task runs the Vite build and copies `dist/`
-    into `src/main/resources/static/` (UI + API in one container — clean full-stack deploy story).
+  - *Built / CI / E2E:* a multi-stage `ui` image (`node` builds the SPA → `nginx` serves it) is
+    added to `docker compose`. nginx serves the SPA and reverse-proxies `/v1` and `/health` to
+    `app:8083`, so the browser hits **one origin** (the realistic "SPA behind a reverse proxy"
+    shape). `docker compose up` brings app + ui + infra together; Gradle stays Java-only.
 - **No API-level Playwright tests:** the API contract is already covered by the
   JUnit/Testcontainers component suite; Playwright owns the *browser* layer only (no redundancy).
 
@@ -48,11 +52,19 @@ state libraries (Redux), SSR. No new backend endpoints — the UI consumes the e
   redirect, 404 dataset, downloading a PENDING version, non-owner forbidden.
 - Runs locally against `docker compose up`; a CI job boots compose and runs the suite.
 
+## Delivery: two PRs
+
+- **PR A — UI:** `ui/` React+Vite+TS app + the `ui` compose service (multi-stage Dockerfile +
+  nginx same-origin proxy) + docs. Usable via `docker compose up`. No Playwright yet.
+- **PR B — browser E2E:** `e2e/` Playwright + one sample test + the CI job, targeting the UI from
+  PR A. Merges after PR A (the E2E needs the UI running).
+
 ## Division of labor
 
-I build the thin UI + the same-origin serving + **one sample Playwright UI test** (the login/
-auth-fixture exemplar) + the CI job. **You extend the Playwright suite** screen by screen — that's
-the practice. I review/pair on tricky bits (upload + route interception, isolation, flakiness).
+I build PR A (the thin UI + same-origin serving). In PR B I add the Playwright scaffold + **one
+sample UI test** (the login / `storageState` fixture exemplar) + the CI job; **you extend the
+suite** screen by screen — that's the practice. I review/pair on tricky bits (upload + route
+interception, isolation, flakiness).
 
 ## Roadmap
 
@@ -61,8 +73,11 @@ Playwright DoD item is reframed: the happy-path E2E is delivered through the UI 
 
 ## Definition of done
 
+**PR A (UI):**
 - [ ] `ui/` React+Vite+TS app: login, list+search, create, detail+upload — all wired to the live API
-- [ ] Built UI served same-origin by Spring at `:8083`; `docker compose up` serves app + UI + infra
+- [ ] `ui` compose service serves the SPA same-origin (nginx proxies `/v1`, `/health` to the app); `docker compose up` serves app + ui + infra; Gradle untouched
+
+**PR B (browser E2E):**
 - [ ] One sample Playwright UI test (login + `storageState` fixture) green locally and in CI
 - [ ] CI job boots the compose stack and runs the Playwright suite; HTML report uploaded as artifact
 - [ ] *(you, ongoing)* remaining UI E2E: search/pagination, create, upload happy-path, edge cases
