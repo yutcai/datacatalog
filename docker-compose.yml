@@ -28,6 +28,10 @@ services:
       POSTGRES_PASSWORD: ${DB_PASSWORD:-datacatalog}
     ports:
       - "5432:5432"
+    volumes:
+      # named volume so catalog data survives `docker compose down`
+      # (wipe it with `docker compose down -v` for a clean slate)
+      - pgdata:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U datacatalog"]
       interval: 5s
@@ -45,3 +49,6 @@ services:
       interval: 5s
       timeout: 3s
       retries: 10
+
+volumes:
+  pgdata:
