@@ -15,9 +15,9 @@ Data files scattered across shared drives and buckets are effectively lost: nobo
 ```mermaid
 flowchart LR
     Client -->|JWT| API[Spring Boot API]
-    API -->|metadata queries| PG[(PostgreSQL\nJSONB + GIN)]
+    API -->|metadata queries| PG[("PostgreSQL<br/>JSONB + GIN")]
     API -->|pre-signed URLs| S3[(S3 / LocalStack)]
-    Client -->|PUT / GET file bytes\ndirectly via pre-signed URL| S3
+    Client -->|"PUT / GET file bytes<br/>directly via pre-signed URL"| S3
 ```
 
 File bytes never pass through the application tier — the API issues pre-signed S3 URLs and the client transfers directly to/from object storage. Deeper dive: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
@@ -82,25 +82,42 @@ This compiles the app inside Docker (multi-stage build) and starts three contain
 
 ### Walk through the API (curl)
 
-Prefer the terminal? The same happy path:
+Prefer the terminal? The full happy path — auth, then the two-step upload and download. (Uses `jq` to capture ids/URLs; or run each call alone and copy the values by hand.)
 
 ```bash
-# 1. Register a user — inserts a row in `users`, password stored BCrypt-hashed
-curl -s -X POST localhost:8083/v1/auth/register \
-  -H 'Content-Type: application/json' \
+# 1. Register + exchange credentials for a JWT
+curl -s -X POST localhost:8083/v1/auth/register -H 'Content-Type: application/json' \
   -d '{"username":"alice","password":"s3cret-pw"}' -w '-> %{http_code}\n'
-
-# 2. Exchange credentials for a JWT, capture it into $TOKEN
-#    (needs jq; or run the call alone and copy "accessToken" from the JSON)
-TOKEN=$(curl -s -X POST localhost:8083/v1/auth/token \
-  -H 'Content-Type: application/json' \
+TOKEN=$(curl -s -X POST localhost:8083/v1/auth/token -H 'Content-Type: application/json' \
   -d '{"username":"alice","password":"s3cret-pw"}' | jq -r .accessToken)
 
-# 3. Call a protected endpoint with the bearer token -> 200 + your user
-curl -s localhost:8083/v1/me -H "Authorization: Bearer $TOKEN"; echo
+# 2. Create a dataset — the owner is taken from the token, never the body
+DATASET=$(curl -s -X POST localhost:8083/v1/datasets -H "Authorization: Bearer $TOKEN" \
+  -H 'Content-Type: application/json' \
+  -d '{"name":"sales-2025","tags":["sales","emea"],"metadata":{"region":"emea"}}' | jq -r .id)
 
-# 4. Without a token -> 401, proving the endpoint is secured
-curl -s -o /dev/null -w '/v1/me without token -> %{http_code}\n' localhost:8083/v1/me
+# 3. Request an upload -> a PENDING version + a pre-signed S3 PUT URL
+REQUEST=$(curl -s -X POST localhost:8083/v1/datasets/$DATASET/versions -H "Authorization: Bearer $TOKEN")
+VERSION=$(echo "$REQUEST" | jq -r .versionId)
+PUT_URL=$(echo "$REQUEST" | jq -r .uploadUrl)
+
+# 4. Upload bytes DIRECTLY to S3 with the pre-signed URL — they never pass through the app.
+#    You don't create the S3 key yourself: request-upload already minted it; the PUT just fills it.
+#    (swap in a real file with `--upload-file ./some.csv`; verify it landed via "Connect to S3" below)
+echo -n 'hello data catalog' | curl -s -o /dev/null -w 'upload -> %{http_code}\n' \
+  -X PUT --data-binary @- "$PUT_URL"
+
+# 5. Complete -> the server HEADs the object and flips the version PENDING -> ACTIVE
+curl -s -X POST localhost:8083/v1/datasets/$DATASET/versions/$VERSION/complete \
+  -H "Authorization: Bearer $TOKEN"; echo
+
+# 6. Download -> a pre-signed GET URL; fetch the same bytes back
+DL_URL=$(curl -s localhost:8083/v1/datasets/$DATASET/versions/$VERSION/download \
+  -H "Authorization: Bearer $TOKEN" | jq -r .downloadUrl)
+curl -s "$DL_URL"; echo    # -> hello data catalog
+
+# Auth is enforced: the same call without a token -> 401
+curl -s -o /dev/null -w 'no token -> %{http_code}\n' localhost:8083/v1/datasets/$DATASET
 ```
 
 ### Developer loop — faster feedback
@@ -117,16 +134,71 @@ No JDK setup needed even for development: the Gradle wrapper is checked in, and 
 
 ### Connect to the database
 
-```bash
-# psql inside the running container
-docker compose exec postgres psql -U datacatalog -d datacatalog
+With the stack running (`docker compose up`), Postgres is exposed on **localhost:5432**. Connection details (local-dev defaults):
 
-# …or from any external client (psql, DBeaver, TablePlus, IntelliJ):
-#   host=localhost  port=5432  db=datacatalog  user=datacatalog  password=datacatalog
+| Setting | Value |
+|---|---|
+| host | `localhost` |
+| port | `5432` |
+| database | `datacatalog` |
+| user | `datacatalog` |
+| password | `datacatalog` |
+
+**Option 1 — no install needed** (psql runs inside the container):
+
+```bash
+docker compose exec postgres psql -U datacatalog -d datacatalog
+```
+
+**Option 2 — psql on your host:**
+
+```bash
 psql "postgresql://datacatalog:datacatalog@localhost:5432/datacatalog"
 ```
 
-Useful once connected: `\dt` (list tables), `select username, created_at from users;`, `select id, name, metadata from datasets;`. The schema and what ran is recorded in `databasechangelog` (Liquibase). Connection values are the local-dev defaults noted above.
+**Option 3 — a GUI client** (DBeaver, TablePlus, IntelliJ Database, pgAdmin): create a PostgreSQL connection with the values from the table above.
+
+Once connected, look at what the API created:
+
+```sql
+\dt                                                   -- list tables
+select username, created_at from users;               -- registered users
+select id, name, tags, metadata from datasets;        -- catalog entries (JSONB metadata)
+select dataset_id, version_number, state, size_bytes  -- versions: PENDING vs ACTIVE
+  from file_versions order by created_at;
+select * from databasechangelog;                      -- what Liquibase migrations ran
+```
+
+### Connect to S3 (LocalStack)
+
+File bytes live in S3 — locally, a [LocalStack](https://www.localstack.cloud/) container exposed on **localhost:4566**, holding a `datacatalog` bucket. The app never proxies bytes; clients PUT/GET them directly via pre-signed URLs. To inspect what actually landed, point the AWS CLI at the local endpoint (local-dev defaults):
+
+| Setting | Value |
+|---|---|
+| endpoint | `http://localhost:4566` |
+| region | `us-east-1` |
+| bucket | `datacatalog` |
+| access key | `test` |
+| secret key | `test` |
+
+**Option 1 — no install needed** (`awslocal` ships inside the LocalStack container, pre-pointed at the local endpoint):
+
+```bash
+docker compose exec localstack awslocal s3 ls s3://datacatalog --recursive
+```
+
+**Option 2 — AWS CLI on your host** (every object key is `datasets/<datasetId>/versions/<uuid>`):
+
+```bash
+export AWS_ACCESS_KEY_ID=test AWS_SECRET_ACCESS_KEY=test AWS_REGION=us-east-1
+alias awslocal='aws --endpoint-url http://localhost:4566'
+
+awslocal s3 ls s3://datacatalog --recursive          # list uploaded objects
+awslocal s3 cp s3://datacatalog/<key> -              # stream an object's bytes to stdout
+awslocal s3api head-object --bucket datacatalog --key <key>   # size + ETag the app records on complete
+```
+
+This is how to confirm a pre-signed PUT really landed: after step 4 of the [curl walkthrough](#walk-through-the-api-curl), `s3 ls` shows the object — and `complete` only flips the version to ACTIVE because the server sees the same object via a HEAD request.
 
 ## API (Phase 0)
 
@@ -170,12 +242,14 @@ Every endpoint except `/health` and `/v1/auth/**` requires a signed JWT (RS256);
 
 **Current grant model:** `/v1/auth/token` is a direct username/password exchange — the shape of OAuth2's *resource-owner-password* grant, used here as a self-contained stand-in, **not** a full authorization server. (That grant is deprecated in OAuth 2.1 precisely because the app sees the password; the *resource server* half above is the production-grade part.) Browser-redirect social login — OAuth2 **Authorization Code + PKCE** with an external IdP such as Google, where the app never sees the password — is the documented next step in the [roadmap](docs/ROADMAP.md).
 
+### Pre-signed URLs and the two-step upload
+
+File bytes never pass through the application tier. To upload, the client calls `request-upload`, which creates a **PENDING** version and returns a pre-signed S3 PUT URL; the client transfers the bytes straight to S3; then `complete` runs. Because the server never witnesses that transfer, `complete` doesn't trust the client — it **HEADs the object** and only flips PENDING → ACTIVE if the bytes are really there, recording the server-observed size and checksum (ETag). An abandoned upload just stays PENDING: invisible to reads, never downloadable, harmless (production would expire orphans with an S3 lifecycle rule). Download issues a pre-signed GET URL for ACTIVE versions only. One subtlety the local stack makes concrete: a pre-signed URL's host must be reachable *by the client*, which can differ from the address the app uses to reach S3 — so the presigner uses a separate public endpoint.
+
 *To be expanded as each slice lands:*
 
-- **Pre-signed URLs** — why file bytes bypass the app tier
-- **Immutable versions with a PENDING → ACTIVE state machine** — why upload is a two-step protocol
-- **Sync API, no async pipeline yet** — and where a queue would slot in
-- **No multipart upload yet** — implies a practical size cap; how multipart would be added
+- **Sync API, no async pipeline yet** — and where the `dataset.version.activated` event + a consumer slot in (Phase 1)
+- **No multipart upload yet** — implies a practical size cap; how multipart would be added (Phase 3)
 
 ## AI-assisted development
 

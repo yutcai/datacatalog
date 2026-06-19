@@ -107,6 +107,10 @@ public class Dataset {
         return latestVersionId;
     }
 
+    public void setLatestVersionId(UUID latestVersionId) {
+        this.latestVersionId = latestVersionId;
+    }
+
     public OffsetDateTime getCreatedAt() {
         return createdAt;
     }

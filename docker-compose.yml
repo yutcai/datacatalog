@@ -6,6 +6,14 @@ services:
     environment:
       DB_HOST: postgres
       DB_PASSWORD: ${DB_PASSWORD:-datacatalog}
+      S3_BUCKET: datacatalog
+      # the app reaches LocalStack over the docker network…
+      S3_ENDPOINT: http://localstack:4566
+      # …but pre-signed URLs must point at a host the client (your browser) can reach
+      S3_PUBLIC_ENDPOINT: http://localhost:4566
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
+      AWS_REGION: us-east-1
     depends_on:
       postgres:
         condition: service_healthy
@@ -20,6 +28,10 @@ services:
       POSTGRES_PASSWORD: ${DB_PASSWORD:-datacatalog}
     ports:
       - "5432:5432"
+    volumes:
+      # named volume so catalog data survives `docker compose down`
+      # (wipe it with `docker compose down -v` for a clean slate)
+      - pgdata:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U datacatalog"]
       interval: 5s
@@ -37,3 +49,6 @@ services:
       interval: 5s
       timeout: 3s
       retries: 10
+
+volumes:
+  pgdata:

@@ -6,15 +6,15 @@ Living document — updated as each slice lands. Items marked **(designed)** are
 
 ```mermaid
 flowchart LR
-    Client -->|"REST + JWT"| API[Spring Boot API\n:8083]
-    API -->|JDBC| PG[(PostgreSQL\nmetadata, JSONB + GIN)]
-    API -->|"AWS SDK\n(pre-sign only)"| S3[(S3 / LocalStack)]
-    Client -.->|"PUT / GET file bytes\nvia pre-signed URL"| S3
+    Client -->|"REST + JWT"| API["Spring Boot API<br/>:8083"]
+    API -->|JDBC| PG[("PostgreSQL<br/>metadata, JSONB + GIN")]
+    API -->|"AWS SDK<br/>(pre-sign only)"| S3[("S3 / LocalStack")]
+    Client -.->|"PUT / GET file bytes<br/>via pre-signed URL"| S3
 ```
 
 The API is a stateless metadata service. It never touches file bytes: uploads and downloads go directly between the client and S3 using short-lived pre-signed URLs issued by the API. Postgres holds everything queryable — catalog entries, immutable version records, and user-defined metadata as indexed JSONB.
 
-## The core flow: two-step upload **(designed)**
+## The core flow: two-step upload
 
 ```mermaid
 sequenceDiagram
@@ -29,7 +29,7 @@ sequenceDiagram
     A-->>C: { versionId, uploadUrl }
     C->>S: PUT file bytes (direct)
     C->>A: POST /v1/datasets/{id}/versions/{vid}/complete (size, checksum)
-    A->>P: verify PENDING → set ACTIVE, record size/checksum,\nupdate datasets.latest_version_id
+    A->>P: verify PENDING → set ACTIVE, record size/checksum,<br/>update datasets.latest_version_id
     A-->>C: 200 version ACTIVE
 ```
 
@@ -57,7 +57,8 @@ io.datacatalog
 ├── config/     SecurityConfig (resource server), JwtConfig
 ├── common/     error handling (RFC 7807 ProblemDetail), pagination   (designed)
 ├── dataset/    create + get done; PATCH + search                     (designed)
-└── version/    FileVersion lifecycle + pre-signing                   (designed)
+├── storage/    S3 pre-signing + object verification
+└── version/    FileVersion lifecycle (request-upload/complete/download)
 ```
 
 ## Persistence
