@@ -237,6 +237,7 @@ Catalog (all protected — require a `Bearer` token):
 |---|---|---|
 | POST | `/v1/datasets` | Create catalog entry → `datasetId` |
 | POST | `/v1/datasets/{id}/versions` | Request upload → pre-signed PUT URL |
+| GET | `/v1/datasets/{id}/versions` | List the dataset's ACTIVE versions, newest first |
 | POST | `/v1/datasets/{id}/versions/{vid}/complete` | Record size/checksum, state → ACTIVE |
 | GET | `/v1/datasets/{id}` | Dataset + latest version + metadata |
 | GET | `/v1/datasets?q=&tag=&owner=&page=&limit=` | Search / filter, paginated |
