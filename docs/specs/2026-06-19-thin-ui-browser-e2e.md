@@ -61,10 +61,20 @@ state libraries (Redux), SSR. No new backend endpoints — the UI consumes the e
 
 ## Division of labor
 
-I build PR A (the thin UI + same-origin serving). In PR B I add the Playwright scaffold + **one
-sample UI test** (the login / `storageState` fixture exemplar) + the CI job; **you extend the
-suite** screen by screen — that's the practice. I review/pair on tricky bits (upload + route
-interception, isolation, flakiness).
+I build PR A (the thin UI + same-origin serving). In PR B I add the Playwright scaffold + **two
+sample UI tests** + the CI job; **you extend the suite** screen by screen — that's the practice.
+The two exemplars are chosen to teach distinct patterns:
+
+1. **Login + `storageState` fixture** — log in once, reuse the authenticated state across tests.
+2. **Download asserts the *outcome*, not the mechanism** — wrap the click in
+   `page.waitForEvent('download')` and assert the file actually arrives. This is deliberately the
+   test that catches the real "Download did nothing" bug (a `window.open`-after-`await` popup
+   block): a shallow click test or a `waitForEvent('popup')` test would false-green, because
+   Playwright's automated Chromium popup policy differs from a real browser. Asserting the download
+   outcome is both robust and the only thing that catches this class of browser-only bug — which
+   the API/component tests structurally cannot. (Motivating example for browser E2E.)
+
+I review/pair on tricky bits (upload + route interception, isolation, flakiness).
 
 ## Roadmap
 
@@ -78,6 +88,6 @@ Playwright DoD item is reframed: the happy-path E2E is delivered through the UI 
 - [ ] `ui` compose service serves the SPA same-origin (nginx proxies `/v1`, `/health` to the app); `docker compose up` serves app + ui + infra; Gradle untouched
 
 **PR B (browser E2E):**
-- [ ] One sample Playwright UI test (login + `storageState` fixture) green locally and in CI
+- [ ] Two sample Playwright UI tests green locally and in CI: (a) login + `storageState` fixture; (b) download asserts the file actually arrives (`waitForEvent('download')`) — catches the popup-block class of bug
 - [ ] CI job boots the compose stack and runs the Playwright suite; HTML report uploaded as artifact
 - [ ] *(you, ongoing)* remaining UI E2E: search/pagination, create, upload happy-path, edge cases
