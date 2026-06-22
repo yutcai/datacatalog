@@ -8,6 +8,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.CORSRule;
 import software.amazon.awssdk.services.s3.model.HeadObjectResponse;
 import software.amazon.awssdk.services.s3.model.NoSuchKeyException;
 import software.amazon.awssdk.services.s3.model.S3Exception;
@@ -67,5 +68,15 @@ public class StorageService {
         } catch (S3Exception e) {
             s3.createBucket(b -> b.bucket(bucket));
         }
+        // The browser PUTs bytes straight to the pre-signed URL from its own origin, so S3
+        // must allow that cross-origin request. ("*" is fine for local dev; scope it in prod IaC.)
+        s3.putBucketCors(b -> b.bucket(bucket).corsConfiguration(c -> c.corsRules(
+                CORSRule.builder()
+                        .allowedOrigins("*")
+                        .allowedMethods("PUT", "GET", "HEAD")
+                        .allowedHeaders("*")
+                        .exposeHeaders("ETag")
+                        .maxAgeSeconds(3600)
+                        .build())));
     }
 }

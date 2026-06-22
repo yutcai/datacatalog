@@ -62,7 +62,7 @@ The schema is owned by [Liquibase changesets](src/main/resources/db/changelog/) 
 
 ## Tech stack
 
-Java 21 · Spring Boot 3 · Spring Security (JWT / OAuth2 resource server) · Spring Data JPA · PostgreSQL (JSONB + GIN) · Liquibase · AWS S3 (LocalStack for local dev) · Gradle · JUnit + Testcontainers · Playwright (API E2E) · GitHub Actions · Docker Compose
+Java 21 · Spring Boot 3 · Spring Security (JWT / OAuth2 resource server) · Spring Data JPA · PostgreSQL (JSONB + GIN) · Liquibase · AWS S3 (LocalStack for local dev) · Gradle · JUnit + Testcontainers · React + Vite (thin web UI) · Playwright (browser E2E) · GitHub Actions · Docker Compose
 
 ## Running locally
 
@@ -76,7 +76,18 @@ docker compose up
 curl localhost:8083/health    # → {"status":"UP",...}
 ```
 
-This compiles the app inside Docker (multi-stage build) and starts three containers: the API on **:8083**, Postgres 16 on **:5432**, and LocalStack S3 on **:4566**. Liquibase migrates the schema automatically on startup.
+This compiles the app inside Docker (multi-stage build) and starts the API on **:8083**, Postgres 16 on **:5432**, LocalStack S3 on **:4566**, and a thin React **web UI on :3000**. Liquibase migrates the schema automatically on startup.
+
+### Use the web UI
+
+A thin React UI lives at **http://localhost:3000** once the stack is up. **The backend must be running** — the UI is a static SPA that gets all its data from the API, so on its own it loads but can't log in, search, or upload. It's a deliberately thin surface over the same API, primarily there to host browser end-to-end tests (see [docs/specs](docs/specs/2026-06-19-thin-ui-browser-e2e.md)).
+
+Two ways to run it:
+
+- **Just try it (recommended):** `docker compose up` already starts the UI alongside the API, Postgres, and LocalStack — open **http://localhost:3000**. nginx serves the SPA and reverse-proxies the API, so the browser talks to a single origin (no CORS).
+- **Develop it (hot reload):** start the backend only — `docker compose up -d app postgres localstack` — then `cd ui && npm install && npm run dev` and open **http://localhost:5173**. Vite proxies `/v1` and `/health` to the app and reloads on save.
+
+Once it's open, the happy path: **register** → **New dataset** → **search** the list → open a dataset → **Upload** a file (the browser PUTs it straight to S3 via a pre-signed URL) → **Download** it back → edit the **description** (owner-only). Start from a clean slate any time with `docker compose down -v`.
 
 **Try the API in your browser:** open **http://localhost:8083/swagger-ui.html** — register a user, call `/v1/auth/token`, click **Authorize** to paste the token, then exercise the protected endpoints. The raw OpenAPI spec is at `/v3/api-docs`. (These are dev conveniences and are disabled under the `prod` profile — run production with `SPRING_PROFILES_ACTIVE=prod`.)
 
