@@ -52,7 +52,7 @@ export default function DetailPage() {
     if (!version) return
     setDownloadMsg('')
     try {
-      const { downloadUrl } = await api.download(id, version.versionId)
+      const { downloadUrl } = await api.download(id, version.id)
       // Fetch the bytes and trigger a real download. (window.open after an await loses the
       // click's user-gesture context and gets silently blocked as a popup.)
       const res = await fetch(downloadUrl)

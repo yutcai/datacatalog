@@ -29,12 +29,16 @@ export type RequestUpload = {
   uploadUrl: string
 }
 
+// Matches the backend VersionResponse: the version id field is `id` (note: the
+// request-upload response calls it `versionId` — the two responses differ).
 export type Version = {
-  versionId: string
+  id: string
+  datasetId: string
   versionNumber: number
   state: string
   sizeBytes: number | null
   checksum: string | null
+  createdAt: string
 }
 
 export class ApiError extends Error {
