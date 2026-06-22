@@ -50,7 +50,18 @@ export default function DetailPage() {
   async function onDownload() {
     if (!version) return
     const { downloadUrl } = await api.download(id, version.versionId)
-    window.open(downloadUrl, '_blank')
+    // Fetch the bytes and trigger a real download. (window.open after an await loses the
+    // click's user-gesture context and gets silently blocked as a popup.)
+    const res = await fetch(downloadUrl)
+    const blob = await res.blob()
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `${dataset?.name ?? 'dataset'}-v${version.versionNumber}`
+    document.body.appendChild(a)
+    a.click()
+    a.remove()
+    URL.revokeObjectURL(url)
   }
 
   async function onSaveDescription(e: React.FormEvent) {
