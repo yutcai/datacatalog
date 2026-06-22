@@ -119,6 +119,9 @@ export const api = {
       unwrap<Dataset>(r),
     ),
 
+  listVersions: (id: string) =>
+    http(`/v1/datasets/${id}/versions`).then((r) => unwrap<Version[]>(r)),
+
   requestUpload: (id: string) =>
     http(`/v1/datasets/${id}/versions`, { method: 'POST' }).then((r) =>
       unwrap<RequestUpload>(r),
