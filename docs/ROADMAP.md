@@ -29,9 +29,10 @@ layer. Design: [docs/specs/2026-06-19-thin-ui-browser-e2e.md](specs/2026-06-19-t
 
 **Done when:**
 
-- [ ] React + Vite + TypeScript UI (login, list+search, create, detail+upload) wired to the live API
-- [ ] Built UI served same-origin by Spring; `docker compose up` serves app + UI + infra together
-- [ ] Playwright browser E2E covers the happy path through the UI plus edges (login failure, unauthenticated redirect, 404, PENDING download, non-owner forbidden), green in CI with an HTML report artifact
+- [x] React + Vite + TypeScript UI (login, list+search, create, detail+upload) wired to the live API
+- [x] Built UI served same-origin via an nginx `ui` service; `docker compose up` serves app + UI + infra together
+- [x] Playwright harness + two sample tests (login/`storageState`; download asserts the file actually arrives) green in CI with an HTML report artifact
+- [ ] E2E extended to the remaining screens + edge cases (search/pagination, create, login failure, 401/404, PENDING download, non-owner forbidden) — *ongoing*
 
 ## Phase 1 — AI layer
 
