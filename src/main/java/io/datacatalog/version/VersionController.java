@@ -1,5 +1,6 @@
 package io.datacatalog.version;
 
+import java.util.List;
 import java.util.UUID;
 
 import org.springframework.http.HttpStatus;
@@ -28,6 +29,11 @@ public class VersionController {
     @ResponseStatus(HttpStatus.CREATED)
     public RequestUploadResponse requestUpload(@PathVariable UUID datasetId) {
         return service.requestUpload(datasetId);
+    }
+
+    @GetMapping
+    public List<VersionResponse> list(@PathVariable UUID datasetId) {
+        return service.listVersions(datasetId);
     }
 
     @PostMapping("/{versionId}/complete")

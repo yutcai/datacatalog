@@ -89,6 +89,8 @@ Two ways to run it:
 
 Once it's open, the happy path: **register** → **New dataset** → **search** the list → open a dataset → **Upload** a file (the browser PUTs it straight to S3 via a pre-signed URL) → **Download** it back → edit the **description** (owner-only). Start from a clean slate any time with `docker compose down -v`.
 
+> **Local data lifecycle:** Postgres has a named volume, so catalog records survive restarts; LocalStack does not, so **uploaded file bytes are wiped whenever its container is rebuilt** (`up --build`, `down`). After a rebuild, an old version may download as "no longer in local storage" — re-upload it, or `docker compose down -v` for a consistent clean slate. This is a local-dev artifact only; real S3 is durable.
+
 **Try the API in your browser:** open **http://localhost:8083/swagger-ui.html** — register a user, call `/v1/auth/token`, click **Authorize** to paste the token, then exercise the protected endpoints. The raw OpenAPI spec is at `/v3/api-docs`. (These are dev conveniences and are disabled under the `prod` profile — run production with `SPRING_PROFILES_ACTIVE=prod`.)
 
 ### Walk through the API (curl)
@@ -237,6 +239,7 @@ Catalog (all protected — require a `Bearer` token):
 |---|---|---|
 | POST | `/v1/datasets` | Create catalog entry → `datasetId` |
 | POST | `/v1/datasets/{id}/versions` | Request upload → pre-signed PUT URL |
+| GET | `/v1/datasets/{id}/versions` | List the dataset's ACTIVE versions, newest first |
 | POST | `/v1/datasets/{id}/versions/{vid}/complete` | Record size/checksum, state → ACTIVE |
 | GET | `/v1/datasets/{id}` | Dataset + latest version + metadata |
 | GET | `/v1/datasets?q=&tag=&owner=&page=&limit=` | Search / filter, paginated |

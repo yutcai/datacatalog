@@ -1,5 +1,6 @@
 package io.datacatalog.version;
 
+import java.util.List;
 import java.util.UUID;
 
 import org.springframework.http.HttpStatus;
@@ -23,6 +24,16 @@ public class VersionService {
         this.datasets = datasets;
         this.versions = versions;
         this.storage = storage;
+    }
+
+    /** List a dataset's ACTIVE versions, newest first. PENDING uploads stay invisible to reads. */
+    @Transactional(readOnly = true)
+    public List<VersionResponse> listVersions(UUID datasetId) {
+        if (!datasets.existsById(datasetId)) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "dataset not found");
+        }
+        return versions.findByDatasetIdAndStateOrderByVersionNumberDesc(datasetId, VersionState.ACTIVE)
+                .stream().map(VersionResponse::of).toList();
     }
 
     /** Step 1: register a PENDING version and hand back a pre-signed PUT URL. */

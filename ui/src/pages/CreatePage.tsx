@@ -8,12 +8,22 @@ export default function CreatePage() {
   const [team, setTeam] = useState('')
   const [description, setDescription] = useState('')
   const [tags, setTags] = useState('')
+  const [metadataText, setMetadataText] = useState('')
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault()
     setError('')
+    let metadata: Record<string, unknown> | undefined
+    if (metadataText.trim()) {
+      try {
+        metadata = JSON.parse(metadataText)
+      } catch {
+        setError('Metadata must be valid JSON')
+        return
+      }
+    }
     setBusy(true)
     try {
       const created = await api.create({
@@ -21,6 +31,7 @@ export default function CreatePage() {
         team: team.trim() || undefined,
         description: description.trim() || undefined,
         tags: tags.split(',').map((t) => t.trim()).filter(Boolean),
+        metadata,
       })
       navigate(`/datasets/${created.id}`)
     } catch (err) {
@@ -44,6 +55,11 @@ export default function CreatePage() {
         <label htmlFor="tags">Tags (comma-separated)</label>
         <input id="tags" name="tags" value={tags} onChange={(e) => setTags(e.target.value)}
                placeholder="sales, emea" />
+        <label htmlFor="metadata">Metadata (JSON, optional)</label>
+        <textarea id="metadata" name="metadata" rows={4} value={metadataText}
+                  onChange={(e) => setMetadataText(e.target.value)}
+                  placeholder={'{"region": "emea", "rows": 1000}'}
+                  style={{ fontFamily: 'ui-monospace, monospace' }} />
         {error && <p className="error" role="alert">{error}</p>}
         <p style={{ marginTop: '1rem' }}>
           <button type="submit" disabled={busy}>Create</button>

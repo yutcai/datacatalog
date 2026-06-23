@@ -58,7 +58,7 @@ io.datacatalog
 ├── common/     error handling (RFC 7807 ProblemDetail), pagination   (designed)
 ├── dataset/    create / get / search (filter + paginate) / PATCH
 ├── storage/    S3 pre-signing + object verification
-└── version/    FileVersion lifecycle (request-upload/complete/download)
+└── version/    FileVersion lifecycle (request-upload/complete/list/download)
 ```
 
 ## Persistence
