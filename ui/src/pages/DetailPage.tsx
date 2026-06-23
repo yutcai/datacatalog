@@ -67,6 +67,12 @@ export default function DetailPage() {
       // Fetch the bytes and trigger a real download. (window.open after an await loses the
       // click's user-gesture context and gets silently blocked as a popup.)
       const res = await fetch(downloadUrl)
+      if (res.status === 404) {
+        // The version row is in Postgres but its object isn't in S3 — local LocalStack
+        // resets when its container is rebuilt (the DB persists, S3 doesn't).
+        setDownloadMsg('File is no longer in local storage — re-upload to restore.')
+        return
+      }
       if (!res.ok) throw new Error(`storage ${res.status}`)
       const blob = await res.blob()
       const url = URL.createObjectURL(blob)
