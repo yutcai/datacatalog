@@ -1,0 +1,12 @@
+{
+  "name": "datacatalog-e2e",
+  "private": true,
+  "description": "Playwright browser end-to-end tests for the DataCatalog web UI",
+  "scripts": {
+    "test": "playwright test",
+    "report": "playwright show-report"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.49.1"
+  }
+}
