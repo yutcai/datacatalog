@@ -16,8 +16,8 @@ A complete, runnable metadata catalog: REST API, S3 pre-signed upload/download, 
 - [x] JUnit + Testcontainers cover a Postgres-backed slice (Postgres + LocalStack S3)
 - [x] CI green on GitHub Actions, badge in README
 - [x] `docker compose up` starts app + Postgres + LocalStack with one command
-- [ ] README: problem statement, architecture diagram, design trade-offs, run instructions
-- [ ] Repository public on GitHub
+- [x] README: problem statement, architecture diagram, design trade-offs, run instructions
+- [x] Repository public on GitHub
 - [ ] *(stretch)* Deployed with a live URL
 
 ## Phase 0.5 — Thin web UI + browser E2E

@@ -4,7 +4,7 @@
 
 A metadata-driven data catalog: store data files in S3 together with rich, queryable metadata in PostgreSQL — upload/download via pre-signed URLs, secured with JWT, with search, filtering, pagination, and immutable versioning.
 
-> **Status:** Phase 0 in progress — scaffolding complete, endpoints under construction. See the [roadmap](docs/ROADMAP.md) for each phase's Definition of Done.
+> **Status:** Phase 0 complete — all 7 `/v1/datasets*` endpoints, JWT auth, search + immutable versioning, JUnit + Testcontainers and Playwright browser E2E, green in CI. Phase 0.5 adds a thin React UI over the same API. Next up: the AI layer (events, semantic search, MCP). See the [roadmap](docs/ROADMAP.md) for each phase's Definition of Done.
 
 ## The problem
 
