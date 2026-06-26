@@ -6,6 +6,12 @@ A metadata-driven data catalog: store data files in S3 together with rich, query
 
 > **Status:** Phase 0 complete — all 7 `/v1/datasets*` endpoints, JWT auth, search + immutable versioning, JUnit + Testcontainers and Playwright browser E2E, green in CI. Phase 0.5 adds a thin React UI over the same API. Next up: the AI layer (events, semantic search, MCP). See the [roadmap](docs/ROADMAP.md) for each phase's Definition of Done.
 
+## Demo
+
+![DataCatalog demo: register, create a dataset with queryable JSON metadata, edit it, then search the catalog](docs/datacatalog-demo.gif)
+
+*Register → create a dataset with queryable JSON metadata → edit it (an owner-scoped partial update) → search the catalog. The pre-signed S3 upload/download round-trip is covered in the [API walkthrough](#walk-through-the-api-curl) and the [browser E2E test](e2e/tests/download.spec.ts).*
+
 ## The problem
 
 Data files scattered across shared drives and buckets are effectively lost: nobody knows what exists, who owns it, or which version is current. DataCatalog gives every file a catalog entry with queryable metadata, so datasets can be found, versioned, and downloaded through one API.
