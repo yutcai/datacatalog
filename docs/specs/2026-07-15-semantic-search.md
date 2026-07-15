@@ -23,7 +23,7 @@ interface EmbeddingClient {
 }
 ```
 
-- **`FakeEmbeddingClient`** — deterministic: hashes the text into a normalized vector of the configured dimension. The default in tests and local dev. Same input → same vector, so similarity assertions are stable and need no API key, no network, no cost.
+- **`FakeEmbeddingClient`** — deterministic *and* similarity-preserving. Naively hashing the whole string would make two unrelated texts as likely to collide as two related ones, so ranking tests would assert an artifact of the hash, not meaning. Instead it tokenizes the text and maps each token onto dimensions (hashed bucket + sign, then L2-normalize), so texts that **share words land closer** in vector space — "quarterly sales" sits nearer "sales revenue" than "childcare rota". That is what makes the ranking assertions meaningful rather than tautological. No API key, no network, no cost, so it's the default in tests and local dev.
 - **A real provider** — added last, behind config: OpenAI `text-embedding-3-small` (or a local model). Selected by a property; the Fake stays the default, so `./gradlew build` and `docker compose up` keep working with nothing external.
 
 This is the point of the slice's structure: the *similarity machinery* (schema, index, query, endpoint) is fully exercised against **real pgvector** using the Fake embedder. Only the final step swaps in real vectors.
@@ -43,14 +43,14 @@ The human-meaningful text: `name`, `description`, and `tags`, joined into one st
 
 ### Populating embeddings
 
-- **On write (synchronous, this slice):** creating or updating a dataset recomputes its embedding. Simple and correct, no moving parts.
-- **Backfill:** a guarded endpoint/command embeds pre-existing rows.
+- **On write (synchronous, this slice):** creating a dataset, or updating any of the embedded fields (name / description / tags), recomputes its embedding. A metadata-only `PATCH` skips it — the embedded text hasn't changed, so re-embedding would be wasted work.
+- **Backfill:** embeds pre-existing rows. The project has no admin role yet, so this is *not* a public API endpoint — it is exposed as an Actuator/management endpoint (or a config-gated startup runner), off the public surface.
 - **Later (slice B — events):** the ROADMAP's event backbone moves embedding off the request path — a consumer reacts to `dataset.version.activated` / `dataset.updated`. The `EmbeddingClient` seam and the synchronous call site are exactly where that consumer will plug in. Noted here, not built here.
 
 ### Query + endpoint
 
 - Repository: `SELECT ... WHERE embedding IS NOT NULL ORDER BY embedding <=> :queryVec LIMIT :k` (cosine distance via `<=>` + `vector_cosine_ops`).
-- `GET /v1/datasets/search/semantic?q=<text>&k=<n>` — embeds `q`, returns the *k* nearest datasets with a similarity score. Protected like every other read.
+- `GET /v1/datasets/search/semantic?q=<text>&k=<n>` — embeds `q`, returns the *k* nearest datasets, each with a similarity score. Protected like every other read. The response is a **new top-k DTO** (`{ items: [{ …datasetSummary, score }] }`), deliberately *not* the paginated `DatasetPage`: there is no `page` / `limit` / `total`, just a ranked list with scores.
 
 ### Testing
 
@@ -79,5 +79,5 @@ The human-meaningful text: `name`, `description`, and `tags`, joined into one st
 
 ## Decisions to confirm
 
-1. **Embedding dimension / target provider:** `1536` (OpenAI `text-embedding-3-small`, the default here) vs `384` (a local MiniLM model — no API key, but heavier in-process deps). Fixes the column dimension.
-2. **Endpoint shape:** a **separate** `/v1/datasets/search/semantic` endpoint (chosen here) vs a `mode=semantic` parameter on the existing search endpoint.
+1. **Embedding dimension / target provider:** `1536` (OpenAI `text-embedding-3-small`) vs `384` (a local MiniLM model — no API key ever, but a heavier in-process ONNX dependency). Fixes the column dimension; needed by step 3. *(Automated review leaned 384/local, to keep the "no external dependency" property true even for the real embedder — a genuine toss-up; owner to pick.)*
+2. **Endpoint shape:** a **separate** `/v1/datasets/search/semantic` endpoint (chosen) vs a `mode=semantic` parameter on the existing search endpoint. *(Automated review concurred: separate — the mechanics, params, and response shape all differ.)*
