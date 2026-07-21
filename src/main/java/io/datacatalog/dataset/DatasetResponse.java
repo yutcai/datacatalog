@@ -14,5 +14,4 @@ public record DatasetResponse(
         List<String> tags,
         Map<String, Object> metadata,
         OffsetDateTime createdAt,
-        OffsetDateTime updatedAt) {
-}
+        OffsetDateTime updatedAt) {}

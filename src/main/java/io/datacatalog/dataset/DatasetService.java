@@ -1,20 +1,18 @@
 package io.datacatalog.dataset;
 
+import io.datacatalog.user.User;
+import io.datacatalog.user.UserRepository;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
-
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
-
-import io.datacatalog.user.User;
-import io.datacatalog.user.UserRepository;
 
 @Service
 public class DatasetService {
@@ -34,8 +32,12 @@ public class DatasetService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "unknown subject"));
 
         Dataset dataset = new Dataset(
-                request.name(), owner.getId(), request.team(), request.description(),
-                request.tags(), request.metadata());
+                request.name(),
+                owner.getId(),
+                request.team(),
+                request.description(),
+                request.tags(),
+                request.metadata());
 
         // saveAndFlush so the DB-generated timestamps are read back before mapping.
         Dataset saved = datasets.saveAndFlush(dataset);
@@ -46,9 +48,8 @@ public class DatasetService {
     public DatasetResponse get(UUID id) {
         Dataset dataset = datasets.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "dataset not found"));
-        String ownerUsername = users.findById(dataset.getOwnerId())
-                .map(User::getUsername)
-                .orElse(null);
+        String ownerUsername =
+                users.findById(dataset.getOwnerId()).map(User::getUsername).orElse(null);
         return toResponse(dataset, ownerUsername);
     }
 
@@ -69,14 +70,14 @@ public class DatasetService {
             ownerId = ownerUser.getId().toString();
         }
 
-        Page<Dataset> result = datasets.search(blankToNull(q), blankToNull(tag), ownerId,
-                PageRequest.of(safePage, safeLimit));
+        Page<Dataset> result =
+                datasets.search(blankToNull(q), blankToNull(tag), ownerId, PageRequest.of(safePage, safeLimit));
 
         // Resolve owner usernames in one batch to avoid an N+1 lookup per row.
-        Set<UUID> ownerIds = result.getContent().stream()
-                .map(Dataset::getOwnerId).collect(Collectors.toSet());
-        Map<UUID, String> usernames = users.findAllById(ownerIds).stream()
-                .collect(Collectors.toMap(User::getId, User::getUsername));
+        Set<UUID> ownerIds =
+                result.getContent().stream().map(Dataset::getOwnerId).collect(Collectors.toSet());
+        Map<UUID, String> usernames =
+                users.findAllById(ownerIds).stream().collect(Collectors.toMap(User::getId, User::getUsername));
 
         List<DatasetResponse> items = result.getContent().stream()
                 .map(d -> toResponse(d, usernames.get(d.getOwnerId())))
@@ -124,7 +125,14 @@ public class DatasetService {
 
     private DatasetResponse toResponse(Dataset d, String ownerUsername) {
         return new DatasetResponse(
-                d.getId(), d.getName(), ownerUsername, d.getTeam(), d.getDescription(),
-                d.getTags(), d.getMetadata(), d.getCreatedAt(), d.getUpdatedAt());
+                d.getId(),
+                d.getName(),
+                ownerUsername,
+                d.getTeam(),
+                d.getDescription(),
+                d.getTags(),
+                d.getMetadata(),
+                d.getCreatedAt(),
+                d.getUpdatedAt());
     }
 }

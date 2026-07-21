@@ -1,16 +1,14 @@
 package io.datacatalog.version;
 
+import io.datacatalog.dataset.Dataset;
+import io.datacatalog.dataset.DatasetRepository;
+import io.datacatalog.storage.StorageService;
 import java.util.List;
 import java.util.UUID;
-
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
-
-import io.datacatalog.dataset.Dataset;
-import io.datacatalog.dataset.DatasetRepository;
-import io.datacatalog.storage.StorageService;
 import software.amazon.awssdk.services.s3.model.HeadObjectResponse;
 
 @Service
@@ -32,8 +30,9 @@ public class VersionService {
         if (!datasets.existsById(datasetId)) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "dataset not found");
         }
-        return versions.findByDatasetIdAndStateOrderByVersionNumberDesc(datasetId, VersionState.ACTIVE)
-                .stream().map(VersionResponse::of).toList();
+        return versions.findByDatasetIdAndStateOrderByVersionNumberDesc(datasetId, VersionState.ACTIVE).stream()
+                .map(VersionResponse::of)
+                .toList();
     }
 
     /** Step 1: register a PENDING version and hand back a pre-signed PUT URL. */
@@ -68,8 +67,10 @@ public class VersionService {
                         HttpStatus.UNPROCESSABLE_ENTITY, "uploaded object not found in storage"));
 
         String etag = head.eTag() == null ? null : head.eTag().replace("\"", "");
-        if (request != null && request.checksum() != null
-                && etag != null && !request.checksum().equalsIgnoreCase(etag)) {
+        if (request != null
+                && request.checksum() != null
+                && etag != null
+                && !request.checksum().equalsIgnoreCase(etag)) {
             throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, "checksum mismatch");
         }
 

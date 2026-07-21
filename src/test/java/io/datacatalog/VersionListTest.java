@@ -1,5 +1,7 @@
 package io.datacatalog;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -8,7 +10,6 @@ import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -20,8 +21,6 @@ import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-
-import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * GET /v1/datasets/{id}/versions — list a dataset's versions so the detail page can show
@@ -74,16 +73,20 @@ class VersionListTest {
         String token = authedUser("ghost");
         // status-only: the error body is a ProblemDetail object, not a JSON array
         ResponseEntity<String> resp = rest.exchange(
-                "/v1/datasets/" + UUID.randomUUID() + "/versions", HttpMethod.GET,
-                new HttpEntity<>(bearer(token)), String.class);
+                "/v1/datasets/" + UUID.randomUUID() + "/versions",
+                HttpMethod.GET,
+                new HttpEntity<>(bearer(token)),
+                String.class);
         assertThat(resp.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
     }
 
     @Test
     void withoutTokenIsUnauthorized() {
         ResponseEntity<String> resp = rest.exchange(
-                "/v1/datasets/" + UUID.randomUUID() + "/versions", HttpMethod.GET,
-                new HttpEntity<>(bearer(null)), String.class);
+                "/v1/datasets/" + UUID.randomUUID() + "/versions",
+                HttpMethod.GET,
+                new HttpEntity<>(bearer(null)),
+                String.class);
         assertThat(resp.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
     }
 
@@ -107,15 +110,17 @@ class VersionListTest {
 
     private String authedUser(String prefix) {
         String username = prefix + "-" + UUID.randomUUID();
-        rest.postForEntity("/v1/auth/register",
-                Map.of("username", username, "password", "pw-12345"), Map.class);
-        return (String) rest.postForEntity("/v1/auth/token",
-                Map.of("username", username, "password", "pw-12345"), Map.class).getBody().get("accessToken");
+        rest.postForEntity("/v1/auth/register", Map.of("username", username, "password", "pw-12345"), Map.class);
+        return (String)
+                rest.postForEntity("/v1/auth/token", Map.of("username", username, "password", "pw-12345"), Map.class)
+                        .getBody()
+                        .get("accessToken");
     }
 
     private String createDataset(String token) {
         return (String) post("/v1/datasets", Map.of("name", "ds-" + UUID.randomUUID()), token)
-                .getBody().get("id");
+                .getBody()
+                .get("id");
     }
 
     private ResponseEntity<Map> post(String path, Map<String, Object> body, String token) {
@@ -136,9 +141,11 @@ class VersionListTest {
     }
 
     private void httpPut(String url, byte[] body) throws Exception {
-        HttpClient.newHttpClient().send(
-                HttpRequest.newBuilder(URI.create(url))
-                        .PUT(HttpRequest.BodyPublishers.ofByteArray(body)).build(),
-                HttpResponse.BodyHandlers.discarding());
+        HttpClient.newHttpClient()
+                .send(
+                        HttpRequest.newBuilder(URI.create(url))
+                                .PUT(HttpRequest.BodyPublishers.ofByteArray(body))
+                                .build(),
+                        HttpResponse.BodyHandlers.discarding());
     }
 }

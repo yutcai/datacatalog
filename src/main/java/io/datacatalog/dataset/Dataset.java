@@ -1,23 +1,21 @@
 package io.datacatalog.dataset;
 
-import java.time.OffsetDateTime;
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
-
-import org.hibernate.annotations.Generated;
-import org.hibernate.annotations.JdbcTypeCode;
-import org.hibernate.generator.EventType;
-import org.hibernate.type.SqlTypes;
-
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import java.time.OffsetDateTime;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+import org.hibernate.annotations.Generated;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.generator.EventType;
+import org.hibernate.type.SqlTypes;
 
 @Entity
 @Table(name = "datasets")
@@ -62,8 +60,13 @@ public class Dataset {
         // for JPA
     }
 
-    public Dataset(String name, UUID ownerId, String team, String description,
-                   List<String> tags, Map<String, Object> metadata) {
+    public Dataset(
+            String name,
+            UUID ownerId,
+            String team,
+            String description,
+            List<String> tags,
+            Map<String, Object> metadata) {
         this.name = name;
         this.ownerId = ownerId;
         this.team = team;

@@ -1,9 +1,10 @@
 package io.datacatalog;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -15,8 +16,6 @@ import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-
-import static org.assertj.core.api.Assertions.assertThat;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @Import(TestcontainersConfiguration.class)
@@ -48,9 +47,9 @@ class DatasetTest {
     @Test
     void getReturnsACreatedDataset() {
         String token = authedUser("reader");
-        String id = (String) post("/v1/datasets",
-                Map.of("name", "inventory", "metadata", Map.of("rows", 1000)), token)
-                .getBody().get("id");
+        String id = (String) post("/v1/datasets", Map.of("name", "inventory", "metadata", Map.of("rows", 1000)), token)
+                .getBody()
+                .get("id");
 
         ResponseEntity<Map> resp = get("/v1/datasets/" + id, token);
 
@@ -97,10 +96,9 @@ class DatasetTest {
 
     private String authedUser(String prefix) {
         tokenUsername = prefix + "-" + UUID.randomUUID();
-        rest.postForEntity("/v1/auth/register",
-                Map.of("username", tokenUsername, "password", "pw-12345"), Map.class);
-        ResponseEntity<Map> token = rest.postForEntity("/v1/auth/token",
-                Map.of("username", tokenUsername, "password", "pw-12345"), Map.class);
+        rest.postForEntity("/v1/auth/register", Map.of("username", tokenUsername, "password", "pw-12345"), Map.class);
+        ResponseEntity<Map> token = rest.postForEntity(
+                "/v1/auth/token", Map.of("username", tokenUsername, "password", "pw-12345"), Map.class);
         return (String) token.getBody().get("accessToken");
     }
 

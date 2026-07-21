@@ -1,5 +1,8 @@
 package io.datacatalog;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -8,7 +11,6 @@ import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -19,10 +21,6 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-
-import com.fasterxml.jackson.databind.ObjectMapper;
-
-import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * PATCH /v1/datasets/{id} — partial update, owner-only, metadata merged by key.
@@ -37,6 +35,7 @@ class DatasetPatchTest {
 
     @Autowired
     private TestRestTemplate rest;
+
     @Autowired
     private ObjectMapper mapper;
 
@@ -45,12 +44,15 @@ class DatasetPatchTest {
         String token = authedUser("editor");
         String id = create(token, Map.of("name", "before", "team", "old", "tags", List.of("a")));
 
-        Response resp = patch(id, Map.of(
-                "name", "after", "team", "new", "description", "now described",
-                "tags", List.of("x", "y")), token);
+        Response resp = patch(
+                id,
+                Map.of("name", "after", "team", "new", "description", "now described", "tags", List.of("x", "y")),
+                token);
 
         assertThat(resp.status).isEqualTo(200);
-        assertThat(resp.body).containsEntry("name", "after").containsEntry("team", "new")
+        assertThat(resp.body)
+                .containsEntry("name", "after")
+                .containsEntry("team", "new")
                 .containsEntry("description", "now described");
         assertThat((List<String>) resp.body.get("tags")).containsExactlyInAnyOrder("x", "y");
     }
@@ -58,22 +60,22 @@ class DatasetPatchTest {
     @Test
     void metadataIsMergedByKeyNotReplaced() throws Exception {
         String token = authedUser("merger");
-        String id = create(token, Map.of("name", "m",
-                "metadata", Map.of("a", 1, "b", 2)));
+        String id = create(token, Map.of("name", "m", "metadata", Map.of("a", 1, "b", 2)));
 
         Response resp = patch(id, Map.of("metadata", Map.of("b", 3, "c", 4)), token);
 
         assertThat(resp.status).isEqualTo(200);
         // a preserved, b overwritten, c added.
         assertThat((Map<String, Object>) resp.body.get("metadata"))
-                .containsEntry("a", 1).containsEntry("b", 3).containsEntry("c", 4);
+                .containsEntry("a", 1)
+                .containsEntry("b", 3)
+                .containsEntry("c", 4);
     }
 
     @Test
     void omittedFieldsAreLeftUnchanged() throws Exception {
         String token = authedUser("partial");
-        String id = create(token, Map.of("name", "keep-me", "description", "keep-this",
-                "tags", List.of("keep")));
+        String id = create(token, Map.of("name", "keep-me", "description", "keep-this", "tags", List.of("keep")));
 
         Response resp = patch(id, Map.of("metadata", Map.of("k", "v")), token);
 
@@ -126,8 +128,7 @@ class DatasetPatchTest {
 
     private String tokenUsername;
 
-    private record Response(int status, Map<String, Object> body) {
-    }
+    private record Response(int status, Map<String, Object> body) {}
 
     private Response patch(String id, Map<String, Object> body, String token) throws Exception {
         // rest.getRootUri() is the embedded test server's own base (http://localhost:<random-port>),
@@ -139,10 +140,9 @@ class DatasetPatchTest {
         if (token != null) {
             req.header("Authorization", "Bearer " + token);
         }
-        HttpResponse<String> resp = HttpClient.newHttpClient()
-                .send(req.build(), HttpResponse.BodyHandlers.ofString());
-        Map<String, Object> parsed = (resp.body() == null || resp.body().isBlank())
-                ? Map.of() : mapper.readValue(resp.body(), Map.class);
+        HttpResponse<String> resp = HttpClient.newHttpClient().send(req.build(), HttpResponse.BodyHandlers.ofString());
+        Map<String, Object> parsed =
+                (resp.body() == null || resp.body().isBlank()) ? Map.of() : mapper.readValue(resp.body(), Map.class);
         return new Response(resp.statusCode(), parsed);
     }
 
@@ -150,18 +150,16 @@ class DatasetPatchTest {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
         headers.setBearerAuth(token);
-        ResponseEntity<Map> resp = rest.postForEntity("/v1/datasets",
-                new HttpEntity<>(body, headers), Map.class);
+        ResponseEntity<Map> resp = rest.postForEntity("/v1/datasets", new HttpEntity<>(body, headers), Map.class);
         assertThat(resp.getStatusCode()).isEqualTo(HttpStatus.CREATED);
         return (String) resp.getBody().get("id");
     }
 
     private String authedUser(String prefix) {
         tokenUsername = prefix + "-" + UUID.randomUUID();
-        rest.postForEntity("/v1/auth/register",
-                Map.of("username", tokenUsername, "password", "pw-12345"), Map.class);
-        ResponseEntity<Map> token = rest.postForEntity("/v1/auth/token",
-                Map.of("username", tokenUsername, "password", "pw-12345"), Map.class);
+        rest.postForEntity("/v1/auth/register", Map.of("username", tokenUsername, "password", "pw-12345"), Map.class);
+        ResponseEntity<Map> token = rest.postForEntity(
+                "/v1/auth/token", Map.of("username", tokenUsername, "password", "pw-12345"), Map.class);
         return (String) token.getBody().get("accessToken");
     }
 }

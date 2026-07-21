@@ -1,17 +1,16 @@
 package io.datacatalog;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
 import java.util.List;
 import java.util.UUID;
-
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.jdbc.core.JdbcTemplate;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @Import(TestcontainersConfiguration.class)
@@ -23,8 +22,7 @@ class SchemaTest {
     @Test
     void liquibaseCreatesCoreTables() {
         List<String> tables = jdbc.queryForList(
-                "select table_name from information_schema.tables where table_schema = 'public'",
-                String.class);
+                "select table_name from information_schema.tables where table_schema = 'public'", String.class);
 
         assertThat(tables).contains("users", "datasets", "file_versions");
     }
@@ -35,23 +33,27 @@ class SchemaTest {
         // share this database and also write datasets.
         UUID ownerId = insertUser("schema-test-alice");
         String region = "emea-" + UUID.randomUUID();
-        jdbc.update("""
+        jdbc.update(
+                """
                 insert into datasets (name, owner_id, metadata)
                 values (?, ?, jsonb_build_object('region', ?::text, 'format', 'parquet'))
-                """, "sales-2025", ownerId, region);
+                """,
+                "sales-2025",
+                ownerId,
+                region);
 
         Integer hits = jdbc.queryForObject(
                 "select count(*) from datasets where metadata @> jsonb_build_object('region', ?::text)",
-                Integer.class, region);
+                Integer.class,
+                region);
 
         assertThat(hits).isEqualTo(1);
     }
 
     @Test
     void metadataAndTagsHaveGinIndexes() {
-        List<String> indexDefs = jdbc.queryForList(
-                "select indexdef from pg_indexes where tablename = 'datasets'",
-                String.class);
+        List<String> indexDefs =
+                jdbc.queryForList("select indexdef from pg_indexes where tablename = 'datasets'", String.class);
 
         assertThat(indexDefs).anyMatch(def -> def.contains("USING gin") && def.contains("metadata"));
         assertThat(indexDefs).anyMatch(def -> def.contains("USING gin") && def.contains("tags"));
@@ -63,8 +65,7 @@ class SchemaTest {
         UUID datasetId = insertDataset("inventory-2025", ownerId);
         insertVersion(datasetId, 1);
 
-        assertThatThrownBy(() -> insertVersion(datasetId, 1))
-                .isInstanceOf(DataIntegrityViolationException.class);
+        assertThatThrownBy(() -> insertVersion(datasetId, 1)).isInstanceOf(DataIntegrityViolationException.class);
     }
 
     @Test
@@ -72,16 +73,20 @@ class SchemaTest {
         UUID ownerId = insertUser("schema-test-carol");
         UUID datasetId = insertDataset("logs-2025", ownerId);
 
-        assertThatThrownBy(() -> jdbc.update("""
+        assertThatThrownBy(() -> jdbc.update(
+                        """
                 insert into file_versions (dataset_id, version_number, s3_key, state)
                 values (?, ?, ?, ?)
-                """, datasetId, 1, "s3-key", "BOGUS"))
+                """,
+                        datasetId,
+                        1,
+                        "s3-key",
+                        "BOGUS"))
                 .isInstanceOf(DataIntegrityViolationException.class);
     }
 
     private UUID insertUser(String username) {
-        return jdbc.queryForObject(
-                "insert into users (username) values (?) returning id", UUID.class, username);
+        return jdbc.queryForObject("insert into users (username) values (?) returning id", UUID.class, username);
     }
 
     private UUID insertDataset(String name, UUID ownerId) {
@@ -90,9 +95,13 @@ class SchemaTest {
     }
 
     private void insertVersion(UUID datasetId, int versionNumber) {
-        jdbc.update("""
+        jdbc.update(
+                """
                 insert into file_versions (dataset_id, version_number, s3_key, state)
                 values (?, ?, ?, 'PENDING')
-                """, datasetId, versionNumber, "datasets/" + datasetId + "/v" + versionNumber);
+                """,
+                datasetId,
+                versionNumber,
+                "datasets/" + datasetId + "/v" + versionNumber);
     }
 }

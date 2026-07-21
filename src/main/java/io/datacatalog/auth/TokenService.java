@@ -1,14 +1,12 @@
 package io.datacatalog.auth;
 
+import io.datacatalog.user.User;
 import java.time.Duration;
 import java.time.Instant;
-
 import org.springframework.security.oauth2.jwt.JwtClaimsSet;
 import org.springframework.security.oauth2.jwt.JwtEncoder;
 import org.springframework.security.oauth2.jwt.JwtEncoderParameters;
 import org.springframework.stereotype.Service;
-
-import io.datacatalog.user.User;
 
 @Service
 public class TokenService {
@@ -35,6 +33,5 @@ public class TokenService {
         return new IssuedToken(value, TTL.toSeconds());
     }
 
-    public record IssuedToken(String value, long expiresInSeconds) {
-    }
+    public record IssuedToken(String value, long expiresInSeconds) {}
 }

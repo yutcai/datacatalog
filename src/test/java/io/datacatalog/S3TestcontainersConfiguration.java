@@ -11,8 +11,7 @@ public class S3TestcontainersConfiguration {
 
     @Bean(destroyMethod = "stop")
     LocalStackContainer localStackContainer() {
-        LocalStackContainer container = new LocalStackContainer(
-                DockerImageName.parse("localstack/localstack:3"))
+        LocalStackContainer container = new LocalStackContainer(DockerImageName.parse("localstack/localstack:3"))
                 .withServices(LocalStackContainer.Service.S3);
         container.start();
         return container;
