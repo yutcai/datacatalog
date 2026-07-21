@@ -1,5 +1,8 @@
 package io.datacatalog.auth;
 
+import io.datacatalog.user.User;
+import io.datacatalog.user.UserRepository;
+import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -8,10 +11,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
-
-import io.datacatalog.user.User;
-import io.datacatalog.user.UserRepository;
-import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping("/v1/auth")
@@ -39,8 +38,8 @@ public class AuthController {
     @PostMapping("/token")
     public TokenResponse token(@Valid @RequestBody TokenRequest request) {
         User user = users.findByUsername(request.username())
-                .filter(u -> u.getPasswordHash() != null
-                        && passwordEncoder.matches(request.password(), u.getPasswordHash()))
+                .filter(u ->
+                        u.getPasswordHash() != null && passwordEncoder.matches(request.password(), u.getPasswordHash()))
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "invalid credentials"));
 
         TokenService.IssuedToken issued = tokenService.issue(user);

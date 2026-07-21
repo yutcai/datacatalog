@@ -8,9 +8,4 @@ import java.util.Map;
  * (not replaced); {@code ownerId} and version pointers are never client-editable.
  */
 public record PatchDatasetRequest(
-        String name,
-        String team,
-        String description,
-        List<String> tags,
-        Map<String, Object> metadata) {
-}
+        String name, String team, String description, List<String> tags, Map<String, Object> metadata) {}

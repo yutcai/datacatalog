@@ -13,7 +13,13 @@ public record VersionResponse(
         OffsetDateTime createdAt) {
 
     static VersionResponse of(FileVersion v) {
-        return new VersionResponse(v.getId(), v.getDatasetId(), v.getVersionNumber(),
-                v.getState().name(), v.getSizeBytes(), v.getChecksum(), v.getCreatedAt());
+        return new VersionResponse(
+                v.getId(),
+                v.getDatasetId(),
+                v.getVersionNumber(),
+                v.getState().name(),
+                v.getSizeBytes(),
+                v.getChecksum(),
+                v.getCreatedAt());
     }
 }

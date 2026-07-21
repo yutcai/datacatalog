@@ -1,11 +1,15 @@
 package io.datacatalog;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
+import io.datacatalog.dataset.Dataset;
+import io.datacatalog.dataset.DatasetRepository;
+import io.datacatalog.user.UserRepository;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -17,12 +21,6 @@ import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-
-import io.datacatalog.dataset.Dataset;
-import io.datacatalog.dataset.DatasetRepository;
-import io.datacatalog.user.UserRepository;
-
-import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * GET /v1/datasets?q=&tag=&owner=&page=&limit= — search, filter, offset pagination.
@@ -37,8 +35,10 @@ class DatasetSearchTest {
 
     @Autowired
     private TestRestTemplate rest;
+
     @Autowired
     private DatasetRepository datasetRepo;
+
     @Autowired
     private UserRepository userRepo;
 
@@ -51,22 +51,20 @@ class DatasetSearchTest {
         Map<String, Object> page = search("?owner=" + tokenUsername, token);
 
         assertThat(((Number) page.get("total")).intValue()).isEqualTo(2);
-        assertThat(items(page)).extracting(m -> m.get("name"))
-                .containsExactlyInAnyOrder("first", "second");
+        assertThat(items(page)).extracting(m -> m.get("name")).containsExactlyInAnyOrder("first", "second");
     }
 
     @Test
     void qMatchesNameOrDescription() {
         String token = authedUser("q-search");
         String mark = "zq" + UUID.randomUUID().toString().replace("-", "");
-        create(token, Map.of("name", "alpha-" + mark, "description", "plain"));   // hit via name
+        create(token, Map.of("name", "alpha-" + mark, "description", "plain")); // hit via name
         create(token, Map.of("name", "beta", "description", "see " + mark + " inside")); // hit via description
-        create(token, Map.of("name", "gamma", "description", "unrelated"));        // no hit
+        create(token, Map.of("name", "gamma", "description", "unrelated")); // no hit
 
         Map<String, Object> page = search("?owner=" + tokenUsername + "&q=" + mark, token);
 
-        assertThat(items(page)).extracting(m -> m.get("name"))
-                .containsExactlyInAnyOrder("alpha-" + mark, "beta");
+        assertThat(items(page)).extracting(m -> m.get("name")).containsExactlyInAnyOrder("alpha-" + mark, "beta");
     }
 
     @Test
@@ -113,14 +111,13 @@ class DatasetSearchTest {
 
         // Every row appears exactly once and in one deterministic order across page
         // boundaries — guaranteed only by the (created_at, id) tiebreaker.
-        assertThat(ids).hasSize(5).doesNotHaveDuplicates()
-                .isSortedAccordingTo(Comparator.reverseOrder());
+        assertThat(ids).hasSize(5).doesNotHaveDuplicates().isSortedAccordingTo(Comparator.reverseOrder());
     }
 
     @Test
     void searchWithoutTokenIsUnauthorized() {
-        ResponseEntity<Map> resp = rest.exchange("/v1/datasets", HttpMethod.GET,
-                new HttpEntity<>(new HttpHeaders()), Map.class);
+        ResponseEntity<Map> resp =
+                rest.exchange("/v1/datasets", HttpMethod.GET, new HttpEntity<>(new HttpHeaders()), Map.class);
         assertThat(resp.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
     }
 
@@ -131,8 +128,8 @@ class DatasetSearchTest {
     private Map<String, Object> search(String query, String token) {
         HttpHeaders headers = new HttpHeaders();
         headers.setBearerAuth(token);
-        ResponseEntity<Map> resp = rest.exchange("/v1/datasets" + query, HttpMethod.GET,
-                new HttpEntity<>(headers), Map.class);
+        ResponseEntity<Map> resp =
+                rest.exchange("/v1/datasets" + query, HttpMethod.GET, new HttpEntity<>(headers), Map.class);
         assertThat(resp.getStatusCode()).isEqualTo(HttpStatus.OK);
         return resp.getBody();
     }
@@ -154,17 +151,15 @@ class DatasetSearchTest {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
         headers.setBearerAuth(token);
-        ResponseEntity<Map> resp = rest.postForEntity("/v1/datasets",
-                new HttpEntity<>(body, headers), Map.class);
+        ResponseEntity<Map> resp = rest.postForEntity("/v1/datasets", new HttpEntity<>(body, headers), Map.class);
         assertThat(resp.getStatusCode()).isEqualTo(HttpStatus.CREATED);
     }
 
     private String authedUser(String prefix) {
         tokenUsername = prefix + "-" + UUID.randomUUID();
-        rest.postForEntity("/v1/auth/register",
-                Map.of("username", tokenUsername, "password", "pw-12345"), Map.class);
-        ResponseEntity<Map> token = rest.postForEntity("/v1/auth/token",
-                Map.of("username", tokenUsername, "password", "pw-12345"), Map.class);
+        rest.postForEntity("/v1/auth/register", Map.of("username", tokenUsername, "password", "pw-12345"), Map.class);
+        ResponseEntity<Map> token = rest.postForEntity(
+                "/v1/auth/token", Map.of("username", tokenUsername, "password", "pw-12345"), Map.class);
         return (String) token.getBody().get("accessToken");
     }
 }

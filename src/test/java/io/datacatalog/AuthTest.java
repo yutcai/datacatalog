@@ -1,8 +1,9 @@
 package io.datacatalog;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import java.util.Map;
 import java.util.UUID;
-
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -14,8 +15,6 @@ import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.jdbc.core.JdbcTemplate;
-
-import static org.assertj.core.api.Assertions.assertThat;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @Import(TestcontainersConfiguration.class)
@@ -48,8 +47,8 @@ class AuthTest {
         String username = "bob-" + UUID.randomUUID();
         register(username, "plaintext-pw");
 
-        String stored = jdbc.queryForObject(
-                "select password_hash from users where username = ?", String.class, username);
+        String stored =
+                jdbc.queryForObject("select password_hash from users where username = ?", String.class, username);
 
         assertThat(stored).isNotEqualTo("plaintext-pw").startsWith("$2");
     }
@@ -66,8 +65,8 @@ class AuthTest {
         String username = "dave-" + UUID.randomUUID();
         register(username, "right-pw");
 
-        ResponseEntity<Map> resp = rest.postForEntity(
-                "/v1/auth/token", Map.of("username", username, "password", "wrong-pw"), Map.class);
+        ResponseEntity<Map> resp =
+                rest.postForEntity("/v1/auth/token", Map.of("username", username, "password", "wrong-pw"), Map.class);
 
         assertThat(resp.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
     }
@@ -82,20 +81,18 @@ class AuthTest {
     void protectedEndpointWithGarbageTokenIsUnauthorized() {
         HttpHeaders headers = new HttpHeaders();
         headers.setBearerAuth("not-a-real-jwt");
-        ResponseEntity<Map> resp = rest.exchange(
-                "/v1/me", HttpMethod.GET, new HttpEntity<>(headers), Map.class);
+        ResponseEntity<Map> resp = rest.exchange("/v1/me", HttpMethod.GET, new HttpEntity<>(headers), Map.class);
 
         assertThat(resp.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
     }
 
     private ResponseEntity<Map> register(String username, String password) {
-        return rest.postForEntity(
-                "/v1/auth/register", Map.of("username", username, "password", password), Map.class);
+        return rest.postForEntity("/v1/auth/register", Map.of("username", username, "password", password), Map.class);
     }
 
     private String obtainToken(String username, String password) {
-        ResponseEntity<Map> resp = rest.postForEntity(
-                "/v1/auth/token", Map.of("username", username, "password", password), Map.class);
+        ResponseEntity<Map> resp =
+                rest.postForEntity("/v1/auth/token", Map.of("username", username, "password", password), Map.class);
         assertThat(resp.getStatusCode()).isEqualTo(HttpStatus.OK);
         return (String) resp.getBody().get("accessToken");
     }

@@ -3,10 +3,8 @@ package io.datacatalog.storage;
 import java.net.URL;
 import java.time.Duration;
 import java.util.Optional;
-
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
-
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.CORSRule;
 import software.amazon.awssdk.services.s3.model.HeadObjectResponse;
@@ -36,15 +34,17 @@ public class StorageService {
     }
 
     public URL presignPut(String key) {
-        return presigner.presignPutObject(b -> b
-                .signatureDuration(UPLOAD_TTL)
-                .putObjectRequest(r -> r.bucket(bucket).key(key))).url();
+        return presigner
+                .presignPutObject(b -> b.signatureDuration(UPLOAD_TTL)
+                        .putObjectRequest(r -> r.bucket(bucket).key(key)))
+                .url();
     }
 
     public URL presignGet(String key) {
-        return presigner.presignGetObject(b -> b
-                .signatureDuration(DOWNLOAD_TTL)
-                .getObjectRequest(r -> r.bucket(bucket).key(key))).url();
+        return presigner
+                .presignGetObject(b -> b.signatureDuration(DOWNLOAD_TTL)
+                        .getObjectRequest(r -> r.bucket(bucket).key(key)))
+                .url();
     }
 
     /** HEAD the object; empty if it isn't there (the upload never happened). */
@@ -70,8 +70,8 @@ public class StorageService {
         }
         // The browser PUTs bytes straight to the pre-signed URL from its own origin, so S3
         // must allow that cross-origin request. ("*" is fine for local dev; scope it in prod IaC.)
-        s3.putBucketCors(b -> b.bucket(bucket).corsConfiguration(c -> c.corsRules(
-                CORSRule.builder()
+        s3.putBucketCors(b -> b.bucket(bucket)
+                .corsConfiguration(c -> c.corsRules(CORSRule.builder()
                         .allowedOrigins("*")
                         .allowedMethods("PUT", "GET", "HEAD")
                         .allowedHeaders("*")
