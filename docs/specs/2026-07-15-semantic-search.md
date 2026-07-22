@@ -24,7 +24,7 @@ interface EmbeddingClient {
 ```
 
 - **`FakeEmbeddingClient`** — deterministic *and* similarity-preserving. Naively hashing the whole string would make two unrelated texts as likely to collide as two related ones, so ranking tests would assert an artifact of the hash, not meaning. Instead it tokenizes the text and maps each token onto dimensions (hashed bucket + sign, then L2-normalize), so texts that **share words land closer** in vector space — "quarterly sales" sits nearer "sales revenue" than "childcare rota". That is what makes the ranking assertions meaningful rather than tautological. No API key, no network, no cost, so it's the default in tests and local dev.
-- **A real provider** — added last, behind config: OpenAI `text-embedding-3-small` (or a local model). Selected by a property; the Fake stays the default, so `./gradlew build` and `docker compose up` keep working with nothing external.
+- **A real provider** — added last, behind config: a local MiniLM sentence-embedding model (`all-MiniLM-L6-v2`, 384 dimensions) running in-process via ONNX — no API key, no network, consistent with the project's "nothing external required" property. Selected by a property; the Fake stays the default, so `./gradlew build` and `docker compose up` keep working with nothing external.
 
 This is the point of the slice's structure: the *similarity machinery* (schema, index, query, endpoint) is fully exercised against **real pgvector** using the Fake embedder. Only the final step swaps in real vectors.
 
@@ -32,10 +32,10 @@ This is the point of the slice's structure: the *similarity machinery* (schema, 
 
 - Swap the Postgres image to `pgvector/pgvector:pg16` — a drop-in (same Postgres, extension available). Testcontainers uses the same image, so tests run against real pgvector.
 - Changeset: `CREATE EXTENSION IF NOT EXISTS vector;`
-- Add `datasets.embedding vector(1536)` — nullable (a row may not be embedded yet).
+- Add `datasets.embedding vector(384)` — nullable (a row may not be embedded yet).
 - HNSW index: `USING hnsw (embedding vector_cosine_ops)` for fast ANN search.
 
-Dimension **1536** matches the target real provider (OpenAI `text-embedding-3-small`); the Fake produces 1536-dim vectors too. The column dimension is fixed at schema time — see *Decisions to confirm*.
+Dimension **384** matches the target real provider (local MiniLM, `all-MiniLM-L6-v2`); the Fake produces 384-dim vectors too. The column dimension is fixed at schema time — see *Decisions*.
 
 ### What gets embedded
 
@@ -67,7 +67,7 @@ The human-meaningful text: `name`, `description`, and `tags`, joined into one st
 6. Backfill path for existing rows + test.
 7. Similarity query + HNSW index + Testcontainers ranking test.
 8. `/v1/datasets/search/semantic` endpoint + component test.
-9. Real provider (OpenAI `text-embedding-3-small`) behind config; Fake stays the default.
+9. Real provider (local MiniLM `all-MiniLM-L6-v2` via ONNX) behind config; Fake stays the default.
 10. UI natural-language search (optional) + README / ARCHITECTURE / design-decisions.
 
 ## Out of scope (deferred)
@@ -77,7 +77,7 @@ The human-meaningful text: `name`, `description`, and `tags`, joined into one st
 - Retrieval eval harness / precision-recall metrics (Phase 1.5).
 - Hybrid search (blending keyword and vector scores).
 
-## Decisions to confirm
+## Decisions
 
-1. **Embedding dimension / target provider:** `1536` (OpenAI `text-embedding-3-small`) vs `384` (a local MiniLM model — no API key ever, but a heavier in-process ONNX dependency). Fixes the column dimension; needed by step 3. *(Automated review leaned 384/local, to keep the "no external dependency" property true even for the real embedder — a genuine toss-up; owner to pick.)*
-2. **Endpoint shape:** a **separate** `/v1/datasets/search/semantic` endpoint (chosen) vs a `mode=semantic` parameter on the existing search endpoint. *(Automated review concurred: separate — the mechanics, params, and response shape all differ.)*
+1. **Embedding dimension / target provider — decided (2026-07-22): `384`, local MiniLM (`all-MiniLM-L6-v2`).** The alternative was `1536` (OpenAI `text-embedding-3-small`): better embedding quality and a lighter integration, but it needs an API key and puts an external service behind the "real" path. 384/local keeps the project's core property — everything builds, runs, and demos with nothing external — true even for the real embedder, at the cost of a heavier in-process ONNX dependency. Automated review leaned the same way.
+2. **Endpoint shape — decided: a separate `/v1/datasets/search/semantic` endpoint**, not a `mode=semantic` parameter on the existing search endpoint. *(Automated review concurred: separate — the mechanics, params, and response shape all differ.)*
