@@ -60,6 +60,13 @@ class SchemaTest {
     }
 
     @Test
+    void pgvectorVectorTypeIsAvailable() {
+        String roundTrip = jdbc.queryForObject("select '[1,2,3]'::vector::text", String.class);
+
+        assertThat(roundTrip).isEqualTo("[1,2,3]");
+    }
+
+    @Test
     void versionNumberIsUniquePerDataset() {
         UUID ownerId = insertUser("schema-test-bob");
         UUID datasetId = insertDataset("inventory-2025", ownerId);
