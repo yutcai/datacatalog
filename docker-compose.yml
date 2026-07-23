@@ -21,7 +21,10 @@ services:
         condition: service_healthy
 
   postgres:
-    image: postgres:16-alpine
+    # Postgres 16 + the pgvector extension (semantic search); same image as the test containers.
+    # Switching from postgres:16-alpine: an existing pgdata volume was initialized under musl
+    # locales, so reset it once with `docker compose down -v`.
+    image: pgvector/pgvector:pg16
     environment:
       POSTGRES_DB: datacatalog
       POSTGRES_USER: datacatalog
