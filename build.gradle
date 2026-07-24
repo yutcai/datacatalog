@@ -38,9 +38,10 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-web'
     implementation 'org.springframework.boot:spring-boot-starter-actuator'
     implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
-    // Maps pgvector's `vector` column type to float[] (@JdbcTypeCode(SqlTypes.VECTOR)).
+    // Registers pgvector's `vector` JdbcType at runtime; the annotations used in code
+    // (@JdbcTypeCode, @Array, SqlTypes.VECTOR) all live in hibernate-core.
     // Not in the Spring Boot BOM, so pin it to the same version as the managed hibernate-core.
-    implementation "org.hibernate.orm:hibernate-vector:${dependencyManagement.importedProperties['hibernate.version']}"
+    runtimeOnly "org.hibernate.orm:hibernate-vector:${dependencyManagement.importedProperties['hibernate.version']}"
     implementation 'org.springframework.boot:spring-boot-starter-security'
     implementation 'org.springframework.boot:spring-boot-starter-oauth2-resource-server'
     implementation 'org.springframework.boot:spring-boot-starter-validation'
