@@ -1,5 +1,7 @@
 package io.datacatalog.embedding;
 
+import java.util.Locale;
+
 /**
  * Deterministic, similarity-preserving embedder for tests and local dev: no model, no
  * network, no key. Tokens are hashed onto dimensions so texts sharing words land closer
@@ -12,7 +14,7 @@ public class FakeEmbeddingClient implements EmbeddingClient {
     @Override
     public float[] embed(String text) {
         float[] vector = new float[DIMENSIONS];
-        for (String token : text.toLowerCase().split("[^\\p{L}\\p{N}]+")) {
+        for (String token : text.toLowerCase(Locale.ROOT).split("[^\\p{L}\\p{N}]+")) {
             if (token.isEmpty()) {
                 continue;
             }
