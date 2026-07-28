@@ -12,6 +12,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import org.hibernate.annotations.Array;
 import org.hibernate.annotations.Generated;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.generator.EventType;
@@ -45,6 +46,13 @@ public class Dataset {
 
     @Column(name = "latest_version_id")
     private UUID latestVersionId;
+
+    // Nullable: a row may not be embedded yet. 384 dims = the target embedding model
+    // (all-MiniLM-L6-v2); see docs/specs/2026-07-15-semantic-search.md.
+    @JdbcTypeCode(SqlTypes.VECTOR)
+    @Array(length = 384)
+    @Column(name = "embedding", columnDefinition = "vector(384)")
+    private float[] embedding;
 
     // Populated by the database default (now()) and read back after insert.
     @Generated(event = EventType.INSERT)
@@ -131,6 +139,14 @@ public class Dataset {
         Map<String, Object> merged = new LinkedHashMap<>(this.metadata == null ? Map.of() : this.metadata);
         merged.putAll(incoming);
         this.metadata = merged;
+    }
+
+    public float[] getEmbedding() {
+        return embedding;
+    }
+
+    public void setEmbedding(float[] embedding) {
+        this.embedding = embedding;
     }
 
     public UUID getLatestVersionId() {
