@@ -1,6 +1,8 @@
 package io.datacatalog.dataset;
 
 import java.util.List;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.boot.actuate.endpoint.annotation.Endpoint;
 import org.springframework.boot.actuate.endpoint.annotation.WriteOperation;
 import org.springframework.stereotype.Component;
@@ -26,6 +28,8 @@ import org.springframework.transaction.annotation.Transactional;
 @Endpoint(id = "embeddings")
 public class EmbeddingBackfillEndpoint {
 
+    private static final Logger log = LoggerFactory.getLogger(EmbeddingBackfillEndpoint.class);
+
     private final DatasetRepository datasets;
     private final DatasetEmbedder embedder;
 
@@ -41,6 +45,9 @@ public class EmbeddingBackfillEndpoint {
     public BackfillResult backfill() {
         List<Dataset> missing = datasets.findAllByEmbeddingIsNull();
         missing.forEach(embedder::embed);
+        // Operator-triggered action: confirm the outcome in the application log too, not
+        // only in an HTTP response nobody may have captured.
+        log.info("Embeddings backfill filled {} dataset(s)", missing.size());
         // The loaded entities are managed within this transaction; the new vectors flush on
         // commit. One transaction for the whole run is fine at catalog scale — batching
         // becomes worthwhile only with a real (slow) provider and row counts to match.
