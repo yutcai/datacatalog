@@ -1,5 +1,6 @@
 package io.datacatalog.dataset;
 
+import java.util.List;
 import java.util.UUID;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -8,6 +9,9 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 public interface DatasetRepository extends JpaRepository<Dataset, UUID> {
+
+    /** Rows not yet embedded — the work list for the embeddings backfill. */
+    List<Dataset> findAllByEmbeddingIsNull();
 
     /**
      * Search with optional, AND-combined filters and offset pagination.
