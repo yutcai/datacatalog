@@ -63,10 +63,48 @@ io.datacatalog
 
 ## Persistence
 
-Schema is owned by [Liquibase changesets](../src/main/resources/db/changelog/) (formatted SQL, each with a rollback); Hibernate runs `ddl-auto: validate`. ER diagram in the [README](../README.md#data-model). Notable choices:
+Schema is owned by [Liquibase changesets](../src/main/resources/db/changelog/) (formatted SQL, each with a rollback); Hibernate runs `ddl-auto: validate`.
+
+```mermaid
+erDiagram
+    users ||--o{ datasets : owns
+    datasets ||--o{ file_versions : "has immutable versions"
+
+    users {
+        uuid id PK
+        text username UK
+        timestamptz created_at
+    }
+    datasets {
+        uuid id PK
+        text name
+        uuid owner_id FK
+        text team
+        text description
+        text_array tags "GIN-indexed"
+        jsonb metadata "GIN-indexed, queryable"
+        vector embedding "vector(384), nullable"
+        uuid latest_version_id FK
+        timestamptz created_at
+        timestamptz updated_at
+    }
+    file_versions {
+        uuid id PK
+        uuid dataset_id FK
+        int version_number "unique per dataset"
+        bigint size_bytes
+        text checksum
+        text s3_key
+        text state "PENDING or ACTIVE"
+        timestamptz created_at
+    }
+```
+
+Notable choices:
 
 - `datasets.metadata jsonb` + GIN (`jsonb_ops`) — containment and key-existence queries
 - `datasets.tags text[]` + GIN — tag filtering without a join table
+- `datasets.embedding vector(384)` (nullable) — pgvector column for semantic search, populated on the write path; similarity query and index land with the Phase 1 slices
 - `datasets.latest_version_id` — denormalized hot-path read ("dataset + latest version"), maintained on version completion; circular FK added in its own changeset
 - `file_versions` — immutable, unique `(dataset_id, version_number)`, state restricted by check constraint
 
@@ -74,7 +112,7 @@ Schema is owned by [Liquibase changesets](../src/main/resources/db/changelog/) (
 
 - **Auth:** OAuth2 resource server; every request outside `/health` and `/v1/auth/**` is authenticated by a signed JWT (RS256). The current user is always derived from the token `sub` — never from a request body. The app also issues tokens (`/v1/auth/token`, BCrypt password check) with a per-instance RSA key; issuance is decoupled from validation so a real IdP can replace it via `issuer-uri`. Minimal `users` table backs ownership.
 - **Errors (designed):** RFC 7807 `application/problem+json` everywhere via Spring's `ProblemDetail`.
-- **Configuration:** all connection settings come from environment variables; the repo ships only throwaway local-dev defaults. See [README → Secrets](../README.md#secrets-stay-out-of-the-repo).
+- **Configuration:** all connection settings come from environment variables; the repo ships only throwaway local-dev defaults. Production injects real values from a secret store (or drops the DB password entirely via IAM database auth).
 - **Health:** Actuator at `GET /health` with liveness/readiness groups, wired into compose healthchecks.
 - **API docs:** springdoc serves an OpenAPI 3 spec (`/v3/api-docs`) and Swagger UI (`/swagger-ui.html`), both permitted without auth so the API is browsable. Disabled under the `prod` profile so the surface isn't published in production.
 
@@ -106,8 +144,8 @@ Deliberately deferred — scoped to a later phase, not overlooked:
 
 ## Testing strategy
 
-- **Component tests** (JUnit + Testcontainers): real Postgres 16 per test JVM via `@ServiceConnection`; schema, constraints, and JSONB queries are verified against the engine that runs in production — not an emulator.
-- **E2E (designed):** Playwright drives the full API against the compose stack (create → upload to LocalStack → complete → search → download), plus 401 / 404 / PENDING-download edge cases. Runs in CI.
+- **Component tests** (JUnit + Testcontainers): real Postgres 16 with pgvector, plus LocalStack S3, per test JVM via `@ServiceConnection`; schema, constraints, and JSONB queries are verified against the engine that runs in production — not an emulator.
+- **Browser E2E** (Playwright, `e2e/`): drives the thin React UI in a real browser against the full compose stack in CI — login via a shared storage-state setup, and the complete upload → download round trip with the file's bytes asserted. The API contract stays owned by the JUnit suite; Playwright owns the browser layer.
 
 ## Where Phase 1+ slots in
 
