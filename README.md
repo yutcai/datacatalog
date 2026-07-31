@@ -42,7 +42,7 @@ The five decisions that most shaped the system, and the trade-offs behind them (
 
 Built test-first: every slice starts with a failing test that is watched to fail before any implementation exists — a test that passes immediately proves nothing about itself.
 
-- **61 backend tests** (JUnit + Testcontainers) run against a real Postgres 16 with pgvector and a real S3 API (LocalStack) — no H2, no mocked repositories. The schema leans on JSONB, GIN indexes, `text[]`, `vector`, and check constraints that in-memory lookalikes don't honestly emulate; the query a test asserts on is byte-for-byte the query production runs.
+- **60+ backend tests** (JUnit + Testcontainers) run against a real Postgres 16 with pgvector and a real S3 API (LocalStack) — no H2, no mocked repositories. The schema leans on JSONB, GIN indexes, `text[]`, `vector`, and check constraints that in-memory lookalikes don't honestly emulate; the query a test asserts on is byte-for-byte the query production runs.
 - **Browser E2E** (Playwright) drives the real React UI against the full compose stack. The [download spec](e2e/tests/download.spec.ts) walks the whole story — create a dataset, upload through the browser straight to S3, download it back, assert the bytes match — and exists because that flow once broke in a way only a real browser could show (a silently popup-blocked `window.open`).
 - **CI on every push and PR**: a `build` job (unit + component tests) and an `e2e` job that boots the compose stack, runs Playwright, and uploads the HTML report as an artifact.
 
