@@ -1,12 +1,10 @@
 package io.datacatalog.dataset;
 
-import io.datacatalog.embedding.EmbeddingClient;
 import io.datacatalog.user.User;
 import io.datacatalog.user.UserRepository;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.StringJoiner;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import org.springframework.data.domain.Page;
@@ -21,12 +19,12 @@ public class DatasetService {
 
     private final DatasetRepository datasets;
     private final UserRepository users;
-    private final EmbeddingClient embeddings;
+    private final DatasetEmbedder embedder;
 
-    public DatasetService(DatasetRepository datasets, UserRepository users, EmbeddingClient embeddings) {
+    public DatasetService(DatasetRepository datasets, UserRepository users, DatasetEmbedder embedder) {
         this.datasets = datasets;
         this.users = users;
-        this.embeddings = embeddings;
+        this.embedder = embedder;
     }
 
     @Transactional
@@ -42,7 +40,7 @@ public class DatasetService {
                 request.description(),
                 request.tags(),
                 request.metadata());
-        dataset.setEmbedding(embeddings.embed(embeddingText(dataset)));
+        embedder.embed(dataset);
 
         // saveAndFlush so the DB-generated timestamps are read back before mapping.
         Dataset saved = datasets.saveAndFlush(dataset);
@@ -126,26 +124,11 @@ public class DatasetService {
         // Re-embed only when a field that feeds the embedding changed; a team- or
         // metadata-only patch leaves the embedded text — and thus the vector — as is.
         if (request.name() != null || request.description() != null || request.tags() != null) {
-            dataset.setEmbedding(embeddings.embed(embeddingText(dataset)));
+            embedder.embed(dataset);
         }
 
         Dataset saved = datasets.saveAndFlush(dataset);
         return toResponse(saved, actor.getUsername());
-    }
-
-    /**
-     * The text a dataset is embedded from: name + description + tags — the human-meaningful
-     * fields, matching what keyword search covers. Team and metadata stay out (keys and
-     * punctuation add noise, not meaning).
-     */
-    private static String embeddingText(Dataset d) {
-        StringJoiner text = new StringJoiner(" ");
-        text.add(d.getName());
-        if (d.getDescription() != null) {
-            text.add(d.getDescription());
-        }
-        d.getTags().forEach(text::add);
-        return text.toString();
     }
 
     private DatasetResponse toResponse(Dataset d, String ownerUsername) {

@@ -32,6 +32,8 @@ management:
     web:
       # Serve actuator endpoints from the root so the health check is GET /health.
       # Only `health` is exposed; the API itself lives under /v1/** so there is no collision.
+      # The embeddings backfill (POST /embeddings) ships dark: enable it on demand with
+      # MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE=health,embeddings, run it, turn it off.
       base-path: /
       exposure:
         include: health
