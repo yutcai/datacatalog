@@ -14,6 +14,17 @@ public interface DatasetRepository extends JpaRepository<Dataset, UUID> {
     List<Dataset> findAllByEmbeddingIsNull();
 
     /**
+     * The k datasets nearest to {@code queryVector}, nearest first. {@code cosine_distance}
+     * is the hibernate-vector HQL function that renders to pgvector's {@code <=>}, so the
+     * ORDER BY matches the {@code vector_cosine_ops} HNSW index. Unembedded rows have no
+     * position in vector space and are excluded, not ranked last. Pass an unsorted
+     * {@link Pageable} — it only supplies the LIMIT; the ordering belongs to the query.
+     */
+    @Query("select d from Dataset d where d.embedding is not null"
+            + " order by cosine_distance(d.embedding, :queryVector)")
+    List<Dataset> findNearest(@Param("queryVector") float[] queryVector, Pageable pageable);
+
+    /**
      * Search with optional, AND-combined filters and offset pagination.
      *
      * <p>Every filter is bound as text and made optional via {@code CAST(:p AS ...) IS NULL OR ...}
