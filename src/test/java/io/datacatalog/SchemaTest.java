@@ -67,6 +67,17 @@ class SchemaTest {
     }
 
     @Test
+    void embeddingHasAnHnswIndexForCosineDistance() {
+        List<String> indexDefs =
+                jdbc.queryForList("select indexdef from pg_indexes where tablename = 'datasets'", String.class);
+
+        // The similarity query orders by <=> (cosine), so the index must use the matching
+        // opclass — an hnsw index with a different opclass would simply not be used.
+        assertThat(indexDefs)
+                .anyMatch(def -> def.contains("USING hnsw") && def.contains("embedding vector_cosine_ops"));
+    }
+
+    @Test
     void versionNumberIsUniquePerDataset() {
         UUID ownerId = insertUser("schema-test-bob");
         UUID datasetId = insertDataset("inventory-2025", ownerId);
