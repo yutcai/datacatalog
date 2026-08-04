@@ -9,3 +9,5 @@ databaseChangeLog:
       file: db/changelog/004-enable-pgvector.sql
   - include:
       file: db/changelog/005-add-dataset-embedding.sql
+  - include:
+      file: db/changelog/006-add-embedding-hnsw-index.sql
