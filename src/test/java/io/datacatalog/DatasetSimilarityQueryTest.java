@@ -1,12 +1,15 @@
 package io.datacatalog;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.within;
 
 import io.datacatalog.dataset.CreateDatasetRequest;
 import io.datacatalog.dataset.Dataset;
 import io.datacatalog.dataset.DatasetRepository;
 import io.datacatalog.dataset.DatasetService;
+import io.datacatalog.dataset.NearestDataset;
 import io.datacatalog.embedding.FakeEmbeddingClient;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -55,13 +58,19 @@ class DatasetSimilarityQueryTest {
         UUID sharesOne = createNamed(username, "zephyr");
         Set<UUID> mine = Set.of(sharesAll, sharesTwo, sharesOne);
 
-        List<UUID> ranked =
+        List<NearestDataset> ranked =
                 repository.findNearest(fake.embed("zephyr quokka obsidian"), PageRequest.of(0, ALL_ROWS)).stream()
-                        .map(Dataset::getId)
-                        .filter(mine::contains)
+                        .filter(hit -> mine.contains(hit.dataset().getId()))
                         .toList();
 
-        assertThat(ranked).containsExactly(sharesAll, sharesTwo, sharesOne);
+        assertThat(ranked).extracting(hit -> hit.dataset().getId()).containsExactly(sharesAll, sharesTwo, sharesOne);
+        // The reported distance is what the ranking ordered by: identical text sits at
+        // distance ~0 and each dropped token pushes the distance strictly up.
+        assertThat(ranked.get(0).distance()).isCloseTo(0.0, within(1e-6));
+        assertThat(ranked)
+                .extracting(NearestDataset::distance)
+                .isSortedAccordingTo(Comparator.naturalOrder())
+                .doesNotHaveDuplicates();
     }
 
     @Test
@@ -74,7 +83,7 @@ class DatasetSimilarityQueryTest {
                 .getId();
 
         List<UUID> ids = repository.findNearest(fake.embed("zephyr"), PageRequest.of(0, ALL_ROWS)).stream()
-                .map(Dataset::getId)
+                .map(hit -> hit.dataset().getId())
                 .toList();
 
         assertThat(ids).doesNotContain(unembedded);
