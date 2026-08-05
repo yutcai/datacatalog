@@ -83,6 +83,15 @@ class DatasetSemanticSearchTest {
     }
 
     @Test
+    void kBelowOneIsClampedNotAnError() {
+        String token = authedUser("semantic-clamp");
+        create(token, "puffin geyser");
+
+        // Same silent-clamp contract as the keyword search's limit: k=0 means "top 1", not 400.
+        assertThat(items(search("?q=puffin&k=0", token))).hasSize(1);
+    }
+
+    @Test
     void missingOrBlankQIsBadRequest() {
         String token = authedUser("semantic-badreq");
         HttpHeaders headers = new HttpHeaders();
