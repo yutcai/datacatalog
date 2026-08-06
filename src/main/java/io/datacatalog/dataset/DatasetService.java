@@ -1,5 +1,6 @@
 package io.datacatalog.dataset;
 
+import io.datacatalog.embedding.EmbeddingClient;
 import io.datacatalog.user.User;
 import io.datacatalog.user.UserRepository;
 import java.util.List;
@@ -20,11 +21,16 @@ public class DatasetService {
     private final DatasetRepository datasets;
     private final UserRepository users;
     private final DatasetEmbedder embedder;
+    // The raw client embeds query text; the embedder above embeds datasets through it.
+    // Same bean either way, so queries and rows land in the same vector space.
+    private final EmbeddingClient embeddings;
 
-    public DatasetService(DatasetRepository datasets, UserRepository users, DatasetEmbedder embedder) {
+    public DatasetService(
+            DatasetRepository datasets, UserRepository users, DatasetEmbedder embedder, EmbeddingClient embeddings) {
         this.datasets = datasets;
         this.users = users;
         this.embedder = embedder;
+        this.embeddings = embeddings;
     }
 
     @Transactional
@@ -90,6 +96,32 @@ public class DatasetService {
 
     private static String blankToNull(String s) {
         return (s == null || s.isBlank()) ? null : s;
+    }
+
+    /**
+     * Top-k semantic search: embed the query, rank by cosine distance, report cosine
+     * similarity (1 − distance) as the score. Like keyword search, results are not
+     * owner-scoped — reads stay open for discovery.
+     */
+    @Transactional(readOnly = true)
+    public SemanticSearchResponse searchSemantic(String q, int k) {
+        if (q == null || q.isBlank()) {
+            // Blank text embeds to the zero vector, which has no direction to compare against.
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "q must not be blank");
+        }
+        int safeK = Math.min(Math.max(k, 1), MAX_LIMIT);
+        List<NearestDataset> hits = datasets.findNearest(embeddings.embed(q), PageRequest.of(0, safeK));
+
+        Set<UUID> ownerIds =
+                hits.stream().map(hit -> hit.dataset().getOwnerId()).collect(Collectors.toSet());
+        Map<UUID, String> usernames =
+                users.findAllById(ownerIds).stream().collect(Collectors.toMap(User::getId, User::getUsername));
+
+        List<ScoredDatasetResponse> items = hits.stream()
+                .map(hit -> ScoredDatasetResponse.of(
+                        toResponse(hit.dataset(), usernames.get(hit.dataset().getOwnerId())), 1.0 - hit.distance()))
+                .toList();
+        return new SemanticSearchResponse(items);
     }
 
     @Transactional
