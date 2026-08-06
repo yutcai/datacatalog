@@ -77,4 +77,6 @@ Add `tests/<feature>.spec.ts`. Each test starts authenticated via `storageState`
 by creating your own dataset per test (the catalog list is shared). Remaining targets:
 
 - the version history shows multiple uploaded versions and downloads an older one
-- a PENDING version (upload requested, never completed) is listed but not downloadable
+- a PENDING version (upload requested, never completed) never appears in the history — the
+  listing is ACTIVE-only; pin that invisibility (request an upload via the API, skip complete,
+  assert the history is unchanged)
