@@ -43,6 +43,11 @@ public class DatasetController {
         return service.search(q, tag, owner, page, limit);
     }
 
+    @GetMapping("/search/semantic")
+    public SemanticSearchResponse searchSemantic(@RequestParam String q, @RequestParam(defaultValue = "10") int k) {
+        return service.searchSemantic(q, k);
+    }
+
     @GetMapping("/{id}")
     public DatasetResponse get(@PathVariable UUID id) {
         return service.get(id);
