@@ -14,6 +14,8 @@ npx playwright install chromium
 npm test                        # headless
 npx playwright test --ui        # interactive UI mode — great while writing tests
 npm run report                  # open the HTML report
+npm run lint                    # ESLint — a missing await on an action/assertion is an error
+npm run typecheck               # tsc --noEmit
 ```
 
 Override the target with `BASE_URL` (e.g. the Vite dev server `http://localhost:5173`).

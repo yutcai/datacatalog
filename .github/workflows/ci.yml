@@ -51,6 +51,12 @@ jobs:
           npm ci
           npx playwright install --with-deps chromium
 
+      - name: Lint and type-check
+        working-directory: e2e
+        run: |
+          npm run lint
+          npm run typecheck
+
       - name: Run Playwright
         working-directory: e2e
         run: npx playwright test
