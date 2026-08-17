@@ -49,6 +49,12 @@ dependencies {
     implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.9.0'
     implementation 'org.liquibase:liquibase-core'
     implementation 'software.amazon.awssdk:s3'
+    // In-process MiniLM embedding provider (app.embedding.provider=minilm): ONNX Runtime
+    // executes the model, DJL's tokenizers wraps HuggingFace's Rust tokenizer. Neither is
+    // in the Spring Boot BOM. The default fake provider uses neither, but they are
+    // compile-time dependencies of the provider class itself.
+    implementation 'com.microsoft.onnxruntime:onnxruntime:1.22.0'
+    implementation 'ai.djl.huggingface:tokenizers:0.33.0'
     runtimeOnly 'org.postgresql:postgresql'
 
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
