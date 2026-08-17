@@ -17,6 +17,14 @@ spring:
     change-log: classpath:db/changelog/db.changelog-master.yaml
 
 app:
+  embedding:
+    # fake (default) = deterministic in-repo embedder — nothing external, used by tests,
+    #   local dev, and CI. minilm = real sentence embeddings from a local all-MiniLM-L6-v2
+    #   model via in-process ONNX; run scripts/fetch-minilm.sh once (model not committed).
+    provider: ${EMBEDDING_PROVIDER:fake}
+    minilm:
+      model-path: ${EMBEDDING_MODEL_PATH:models/all-MiniLM-L6-v2/model.onnx}
+      tokenizer-path: ${EMBEDDING_TOKENIZER_PATH:models/all-MiniLM-L6-v2/tokenizer.json}
   s3:
     bucket: ${S3_BUCKET:datacatalog}
     region: ${AWS_REGION:us-east-1}
