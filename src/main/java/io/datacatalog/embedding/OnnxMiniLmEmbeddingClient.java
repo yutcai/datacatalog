@@ -1,12 +1,28 @@
 package io.datacatalog.embedding;
 
+import ai.djl.huggingface.tokenizers.Encoding;
+import ai.djl.huggingface.tokenizers.HuggingFaceTokenizer;
+import ai.onnxruntime.OnnxTensor;
+import ai.onnxruntime.OrtEnvironment;
+import ai.onnxruntime.OrtException;
+import ai.onnxruntime.OrtSession;
+import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * Real sentence embeddings from a local MiniLM model (all-MiniLM-L6-v2) running in-process
  * via ONNX Runtime — no API key, no network call at inference time. Selected with
  * {@code app.embedding.provider=minilm}; the deterministic fake stays the default.
+ *
+ * <p>The ONNX export is the transformer backbone only, so this class applies the two
+ * sentence-transformers steps the export leaves out: attention-mask-weighted mean pooling
+ * over the token vectors, then L2 normalization. Unit-length output means the dot product
+ * of two embeddings <em>is</em> their cosine similarity, matching the {@code <=>} cosine
+ * distance the similarity query orders by.
  *
  * <p>The model files (~86 MB) are fetched, never committed: construction fails fast with
  * the fetch instruction when they are missing, so a misconfigured deployment dies at
@@ -16,9 +32,31 @@ public class OnnxMiniLmEmbeddingClient implements EmbeddingClient, AutoCloseable
 
     private static final int DIMENSIONS = 384;
 
+    /** all-MiniLM-L6-v2 was trained on 256-token inputs; longer text is truncated. */
+    private static final int MAX_TOKENS = 256;
+
+    private final OrtEnvironment environment;
+    private final OrtSession session;
+    private final HuggingFaceTokenizer tokenizer;
+
     public OnnxMiniLmEmbeddingClient(Path modelPath, Path tokenizerPath) {
         requireFile(modelPath);
         requireFile(tokenizerPath);
+        try {
+            this.tokenizer = HuggingFaceTokenizer.builder()
+                    .optTokenizerPath(tokenizerPath)
+                    .optTruncation(true)
+                    .optMaxLength(MAX_TOKENS)
+                    .build();
+        } catch (IOException e) {
+            throw new UncheckedIOException("Failed to load MiniLM tokenizer from " + tokenizerPath, e);
+        }
+        try {
+            this.environment = OrtEnvironment.getEnvironment();
+            this.session = environment.createSession(modelPath.toString(), new OrtSession.SessionOptions());
+        } catch (OrtException e) {
+            throw new IllegalStateException("Failed to load MiniLM ONNX model from " + modelPath, e);
+        }
     }
 
     private static void requireFile(Path path) {
@@ -30,7 +68,64 @@ public class OnnxMiniLmEmbeddingClient implements EmbeddingClient, AutoCloseable
 
     @Override
     public float[] embed(String text) {
-        throw new UnsupportedOperationException("not implemented yet");
+        Encoding encoding = tokenizer.encode(text);
+        long[] attentionMask = encoding.getAttentionMask();
+        try (OnnxTensor ids = tensorOf(encoding.getIds());
+                OnnxTensor mask = tensorOf(attentionMask);
+                OnnxTensor types = tensorOf(encoding.getTypeIds())) {
+            // Feed exactly the inputs this export declares; some MiniLM exports omit
+            // token_type_ids, so the map is built from the model's own input list.
+            Map<String, OnnxTensor> inputs = new HashMap<>();
+            for (String name : session.getInputNames()) {
+                switch (name) {
+                    case "input_ids" -> inputs.put(name, ids);
+                    case "attention_mask" -> inputs.put(name, mask);
+                    case "token_type_ids" -> inputs.put(name, types);
+                    default -> throw new IllegalStateException("Unexpected MiniLM model input: " + name);
+                }
+            }
+            try (OrtSession.Result result = session.run(inputs)) {
+                // last_hidden_state: [batch=1][tokens][DIMENSIONS]
+                float[][][] hidden = (float[][][]) result.get(0).getValue();
+                return meanPoolAndNormalize(hidden[0], attentionMask);
+            }
+        } catch (OrtException e) {
+            throw new IllegalStateException("MiniLM inference failed", e);
+        }
+    }
+
+    private OnnxTensor tensorOf(long[] values) throws OrtException {
+        return OnnxTensor.createTensor(environment, new long[][] {values});
+    }
+
+    private static float[] meanPoolAndNormalize(float[][] tokenVectors, long[] attentionMask) {
+        float[] pooled = new float[DIMENSIONS];
+        int realTokens = 0;
+        for (int token = 0; token < tokenVectors.length; token++) {
+            if (attentionMask[token] == 0) {
+                continue; // padding contributes nothing to the sentence meaning
+            }
+            for (int d = 0; d < DIMENSIONS; d++) {
+                pooled[d] += tokenVectors[token][d];
+            }
+            realTokens++;
+        }
+        if (realTokens > 0) {
+            for (int d = 0; d < DIMENSIONS; d++) {
+                pooled[d] /= realTokens;
+            }
+        }
+        double norm = 0;
+        for (float component : pooled) {
+            norm += component * component;
+        }
+        norm = Math.sqrt(norm);
+        if (norm > 0) {
+            for (int d = 0; d < DIMENSIONS; d++) {
+                pooled[d] /= (float) norm;
+            }
+        }
+        return pooled;
     }
 
     @Override
@@ -39,5 +134,14 @@ public class OnnxMiniLmEmbeddingClient implements EmbeddingClient, AutoCloseable
     }
 
     @Override
-    public void close() {}
+    public void close() {
+        // The OrtEnvironment is a process-wide singleton and is deliberately not closed.
+        try {
+            session.close();
+        } catch (OrtException e) {
+            throw new IllegalStateException("Failed to close the MiniLM ONNX session", e);
+        } finally {
+            tokenizer.close();
+        }
+    }
 }
