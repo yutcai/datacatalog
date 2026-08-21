@@ -61,6 +61,3 @@ test.describe('logged-out auth flows', () => {
         await expect(page.getByTestId('current-user')).not.toBeVisible()
     })
 })
-
-
-
