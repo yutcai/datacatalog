@@ -1,13 +1,16 @@
 package io.datacatalog.embedding;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 /**
  * Real inference against the actual MiniLM model. The model files are fetched, never
@@ -38,6 +41,18 @@ class OnnxMiniLmEmbeddingClientTest {
         if (client != null) {
             client.close();
         }
+    }
+
+    @Test
+    void rejectsAnInvalidModelFileAtConstructionTime(@TempDir Path tempDir) throws IOException {
+        // A file that exists but is not a valid ONNX export must fail at construction —
+        // not on the first embed() — and must clean up the already-built tokenizer.
+        Path garbage = tempDir.resolve("not-a-model.onnx");
+        Files.write(garbage, new byte[] {1, 2, 3});
+
+        assertThatThrownBy(() -> new OnnxMiniLmEmbeddingClient(garbage, TOKENIZER))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("not-a-model.onnx");
     }
 
     @Test

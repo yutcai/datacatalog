@@ -12,6 +12,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Real sentence embeddings from a local MiniLM model (all-MiniLM-L6-v2) running in-process
@@ -35,6 +36,9 @@ public class OnnxMiniLmEmbeddingClient implements EmbeddingClient, AutoCloseable
     /** all-MiniLM-L6-v2 was trained on 256-token inputs; longer text is truncated. */
     private static final int MAX_TOKENS = 256;
 
+    /** Some MiniLM exports omit token_type_ids; anything outside this set is not our model. */
+    private static final Set<String> SUPPORTED_INPUTS = Set.of("input_ids", "attention_mask", "token_type_ids");
+
     private final OrtEnvironment environment;
     private final OrtSession session;
     private final HuggingFaceTokenizer tokenizer;
@@ -51,11 +55,21 @@ public class OnnxMiniLmEmbeddingClient implements EmbeddingClient, AutoCloseable
         } catch (IOException e) {
             throw new UncheckedIOException("Failed to load MiniLM tokenizer from " + tokenizerPath, e);
         }
+        // The tokenizer holds a native handle; if anything after this point fails, the
+        // half-constructed object is never registered with Spring, so close() would never
+        // run — clean up here before rethrowing.
+        OrtSession session = null;
         try {
             this.environment = OrtEnvironment.getEnvironment();
-            this.session = environment.createSession(modelPath.toString(), new OrtSession.SessionOptions());
-        } catch (OrtException e) {
-            throw new IllegalStateException("Failed to load MiniLM ONNX model from " + modelPath, e);
+            session = environment.createSession(modelPath.toString(), new OrtSession.SessionOptions());
+            requireSupportedInputs(session.getInputNames());
+            this.session = session;
+        } catch (OrtException | RuntimeException e) {
+            closeQuietly(session);
+            tokenizer.close();
+            throw e instanceof OrtException
+                    ? new IllegalStateException("Failed to load MiniLM ONNX model from " + modelPath, e)
+                    : (RuntimeException) e;
         }
     }
 
@@ -63,6 +77,35 @@ public class OnnxMiniLmEmbeddingClient implements EmbeddingClient, AutoCloseable
         if (!Files.isRegularFile(path)) {
             throw new IllegalStateException("MiniLM model file not found: " + path
                     + " — run scripts/fetch-minilm.sh to download it" + " (model files are not committed)");
+        }
+    }
+
+    /**
+     * An incompatible-but-present export (different input names) would otherwise only fail
+     * on the first embed() call — validating here keeps the "dies at startup, not on the
+     * first write" guarantee for malformed files, not just missing ones.
+     */
+    private static void requireSupportedInputs(Set<String> inputNames) {
+        if (!inputNames.contains("input_ids") || !inputNames.contains("attention_mask")) {
+            throw new IllegalStateException(
+                    "Unsupported MiniLM ONNX export: expected inputs input_ids and attention_mask, got " + inputNames);
+        }
+        for (String name : inputNames) {
+            if (!SUPPORTED_INPUTS.contains(name)) {
+                throw new IllegalStateException("Unsupported MiniLM ONNX export: unexpected input '" + name
+                        + "' (supported: " + SUPPORTED_INPUTS + ")");
+            }
+        }
+    }
+
+    private static void closeQuietly(OrtSession session) {
+        if (session == null) {
+            return;
+        }
+        try {
+            session.close();
+        } catch (OrtException suppressed) {
+            // cleanup on a failure path — the original exception is the one that matters
         }
     }
 
