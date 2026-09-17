@@ -30,7 +30,7 @@ repositories {
 
 dependencyManagement {
     imports {
-        mavenBom 'software.amazon.awssdk:bom:2.54.13'
+        mavenBom 'software.amazon.awssdk:bom:2.54.17'
     }
 }
 
@@ -54,7 +54,7 @@ dependencies {
     // in the Spring Boot BOM. The default fake provider uses neither, but they are
     // compile-time dependencies of the provider class itself.
     implementation 'com.microsoft.onnxruntime:onnxruntime:1.29.0'
-    implementation 'ai.djl.huggingface:tokenizers:0.37.0'
+    implementation 'ai.djl.huggingface:tokenizers:0.38.0'
     runtimeOnly 'org.postgresql:postgresql'
 
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
