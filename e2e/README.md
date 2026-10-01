@@ -61,14 +61,24 @@ to force `auth.setup.ts` to re-run: `rm -rf playwright/.auth`.
   arrives** (`waitForEvent('download')` + byte check). This is the pattern that catches the
   popup-block "Download did nothing" bug — assert the *outcome*, not the mechanism. A shallow
   click test, or a `waitForEvent('popup')` test, would false-green.
+- `tests/helpers.ts` — seeds users/datasets **through the API** (setup isn't the behavior under
+  test, and the API is much faster than driving forms).
+- `tests/search.spec.ts` — search by name, tag filter + pagination, empty state. Seeded rows
+  carry a unique marker and assertions only look through that filter — the catalog is shared,
+  so "the list has exactly N rows" would flake.
+- `tests/create-validation.spec.ts` — bad-JSON metadata (client-side) and blank name (API 400),
+  both surfaced as messages with no navigation.
+- `tests/errors.spec.ts` — 404 page for an unknown id; unauthenticated redirect to `/login`
+  (overrides the suite-wide `storageState` with an empty one).
+- `tests/edit.spec.ts` — owner edit with metadata merged by key; non-owner PATCH surfacing the
+  403 as a message.
 
 ## Extending (the practice)
 
 Add `tests/<feature>.spec.ts`. Each test starts authenticated via `storageState`; isolate data
-by creating your own dataset per test (the catalog list is shared). Good next targets:
+by creating your own dataset per test (the catalog list is shared). Remaining targets:
 
-- search + filter + pagination
-- create-form validation (empty name, bad JSON metadata)
-- 404 on an unknown dataset id; unauthenticated redirect to `/login`
-- non-owner cannot edit (403 surfaced in the UI)
-- the version history shows uploaded versions and downloads any of them
+- the version history shows multiple uploaded versions and downloads an older one
+- a PENDING version (upload requested, never completed) never appears in the history — the
+  listing is ACTIVE-only; pin that invisibility (request an upload via the API, skip complete,
+  assert the history is unchanged)
